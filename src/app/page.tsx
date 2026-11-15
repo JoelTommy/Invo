@@ -3,16 +3,22 @@
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import InvoiceForm from "@/components/InvoiceForm";
 import InvoicePreview from "@/components/InvoicePreview";
-import { defaultInvoice } from "@/lib/defaults";
 import {
+  freshInvoice,
   getDraftSnapshot,
   getServerDraftSnapshot,
   saveDraft,
   subscribeDraft,
 } from "@/lib/draft-store";
 import { nextInvoiceNumber } from "@/lib/format";
+import {
+  applyProfileToInvoice,
+  getProfilesSnapshot,
+  getServerProfilesSnapshot,
+  subscribeProfiles,
+} from "@/lib/profiles-store";
 import { downloadPdf } from "@/lib/pdf";
-import type { InvoiceData } from "@/lib/types";
+import type { BusinessProfile, InvoiceData } from "@/lib/types";
 
 export default function CreateInvoicePage() {
   // The draft is an external store (localStorage) read through
@@ -22,6 +28,23 @@ export default function CreateInvoicePage() {
   const [mode, setMode] = useState<"edit" | "preview">("edit"); // mobile only
   const [pdfError, setPdfError] = useState("");
   const paperRef = useRef<HTMLDivElement>(null);
+  const profiles = useSyncExternalStore(
+    subscribeProfiles,
+    getProfilesSnapshot,
+    getServerProfilesSnapshot,
+  );
+
+  // Picking a profile copies its details into the draft as a snapshot —
+  // editing the profile later never changes an invoice already started.
+  const applyProfile = useCallback((profile: BusinessProfile | null) => {
+    const current = getDraftSnapshot();
+    if (!current) return;
+    if (!profile) {
+      saveDraft({ ...current, profileId: null });
+      return;
+    }
+    saveDraft({ ...current, ...applyProfileToInvoice(profile) });
+  }, []);
 
   const update = useCallback((patch: Partial<InvoiceData>) => {
     const current = getDraftSnapshot();
@@ -31,7 +54,7 @@ export default function CreateInvoicePage() {
 
   const clearForm = useCallback(() => {
     const current = getDraftSnapshot();
-    const fresh = defaultInvoice();
+    const fresh = freshInvoice();
     // Keep the suggested number moving forward so numbers stay unique.
     if (current) fresh.invoiceNumber = nextInvoiceNumber(current.invoiceNumber);
     saveDraft(fresh);
@@ -91,7 +114,13 @@ export default function CreateInvoicePage() {
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,46%)]">
         {/* Left column: the form */}
         <div className={mode === "edit" ? "block" : "hidden lg:block"}>
-          <InvoiceForm data={data} update={update} onClear={clearForm} />
+          <InvoiceForm
+            data={data}
+            update={update}
+            onClear={clearForm}
+            profiles={profiles}
+            onSelectProfile={applyProfile}
+          />
         </div>
 
         {/* Right column: sticky live preview */}

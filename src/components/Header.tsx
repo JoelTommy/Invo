@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import SignInModal from "./SignInModal";
 import ThemeToggle from "./ThemeToggle";
+import {
+  getAuthSnapshot,
+  getServerAuthSnapshot,
+  signOut,
+  subscribeAuth,
+} from "@/lib/auth";
 
 const TABS = [
   { href: "/", label: "Create" },
@@ -15,6 +21,8 @@ const TABS = [
 export default function Header() {
   const pathname = usePathname();
   const [signInOpen, setSignInOpen] = useState(false);
+  const session = useSyncExternalStore(subscribeAuth, getAuthSnapshot, getServerAuthSnapshot);
+  const email = session?.user?.email ?? null;
 
   // "Save invoice" on the Create page opens this same modal.
   useEffect(() => {
@@ -51,9 +59,20 @@ export default function Header() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <button type="button" className="btn btn-small" onClick={() => setSignInOpen(true)}>
-            Sign in
-          </button>
+          {email ? (
+            <>
+              <span className="border-2 border-ink bg-panel px-2 py-1 font-mono text-xs" title={`Signed in as ${email}`}>
+                {email}
+              </span>
+              <button type="button" className="btn btn-small" onClick={() => signOut()}>
+                Sign out
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn btn-small" onClick={() => setSignInOpen(true)}>
+              Sign in
+            </button>
+          )}
           <ThemeToggle />
         </div>
       </div>

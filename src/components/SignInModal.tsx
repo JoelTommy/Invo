@@ -1,14 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { signInWithGoogle } from "@/lib/auth";
 
-/** Prompted when a logged-out visitor presses "Save invoice" or "Sign in".
- *  The real Google OAuth lands in stage 4 (Supabase); this round the flow
- *  exists and says so plainly instead of faking a login. */
+/** Prompted when a logged-out visitor presses "Save invoice" or "Sign in". */
 export default function SignInModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [explained, setExplained] = useState(false);
+  const [note, setNote] = useState<"" | "unconfigured" | "redirecting">("");
 
   if (!open) return null;
+
+  async function handleGoogle() {
+    const started = await signInWithGoogle();
+    // Supabase redirects the browser on success; false means not configured.
+    setNote(started ? "redirecting" : "unconfigured");
+  }
 
   return (
     <div
@@ -28,14 +33,20 @@ export default function SignInModal({ open, onClose }: { open: boolean; onClose:
         <button
           type="button"
           className="btn btn-primary mt-4 w-full"
-          onClick={() => setExplained(true)}
+          onClick={handleGoogle}
         >
           Continue with Google
         </button>
-        {explained && (
+        {note === "unconfigured" && (
           <p className="mt-2 border-2 border-ink p-2 text-sm" role="status">
-            Google sign-in connects in stage 4 (Supabase). Nothing to set up right now — your
-            draft is already saved in this browser.
+            Google sign-in isn&apos;t connected yet — the Supabase project keys are missing from
+            this deployment (see the README setup checklist). Your draft is already saved in this
+            browser.
+          </p>
+        )}
+        {note === "redirecting" && (
+          <p className="mt-2 border-2 border-ink p-2 text-sm" role="status">
+            Taking you to Google… finish there and you&apos;ll come right back.
           </p>
         )}
         <button type="button" className="btn mt-3 w-full" onClick={onClose}>

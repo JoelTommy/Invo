@@ -12,32 +12,40 @@ interface PreviewProps {
   data: InvoiceData;
 }
 
-/** Scales the fixed-width paper down to fit whatever column it sits in. */
+/** Shows a true A5 sheet: fixed width, A5 min-height, scaled to fit the
+ *  column, with the surrounding layout height compensated for the scale. */
 function PaperViewport({ children }: { children: React.ReactNode }) {
   const outerRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [contentHeight, setContentHeight] = useState(0);
 
   useLayoutEffect(() => {
     const outer = outerRef.current;
-    if (!outer) return;
+    const wrap = wrapRef.current;
+    if (!outer || !wrap) return;
     const update = () => {
       const width = outer.clientWidth;
-      if (width > 0 && width < PAPER_WIDTH) setScale(width / PAPER_WIDTH);
-      else setScale(1);
+      setScale(width > 0 && width < PAPER_WIDTH ? width / PAPER_WIDTH : 1);
+      setContentHeight(wrap.offsetHeight);
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(outer);
+    observer.observe(wrap);
     return () => observer.disconnect();
   }, []);
 
   return (
-    <div ref={outerRef} className="paper-viewport">
+    <div
+      ref={outerRef}
+      className="paper-viewport"
+      style={scale < 1 && contentHeight ? { height: contentHeight * scale } : undefined}
+    >
       <div
         ref={wrapRef}
         className="paper-scale-wrap origin-top-left"
-        style={{ transform: `scale(${scale})`, width: PAPER_WIDTH, height: undefined }}
+        style={{ transform: `scale(${scale})`, width: PAPER_WIDTH }}
       >
         {children}
       </div>
@@ -53,8 +61,8 @@ function Paper({ data, qrDataUrl }: PreviewProps & { qrDataUrl: string }) {
   return (
     <article
       id="invoice-paper"
-      style={{ ["--paper-accent" as string]: accent }}
-      className="bg-paper text-[12px] leading-snug text-[#101216]"
+      style={{ ["--paper-accent" as string]: accent, minHeight: 794 }} // 794px = 210mm A5 height
+      className="hard-shadow bg-paper text-[12px] leading-snug text-[#101216]"
     >
       {data.template === "brutal" && <BrutalTemplate data={data} totals={totals} qrDataUrl={qrDataUrl} />}
       {data.template === "plain" && <PlainTemplate data={data} totals={totals} qrDataUrl={qrDataUrl} />}

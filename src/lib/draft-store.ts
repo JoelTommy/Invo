@@ -1,5 +1,6 @@
 import type { InvoiceData } from "./types";
 import { defaultInvoice } from "./defaults";
+import { applyProfileToInvoice, defaultProfile } from "./profiles-store";
 
 /**
  * The invoice draft lives in localStorage and React reads it through
@@ -10,6 +11,13 @@ const DRAFT_KEY = "invoice-draft-v1";
 
 // Cache so repeated getSnapshot calls return a stable identity.
 let cache: { raw: string | null; value: InvoiceData | null } | null = null;
+
+/** A truly fresh invoice: blank, with the default profile applied if one exists. */
+export function freshInvoice(): InvoiceData {
+  const fresh = defaultInvoice();
+  const dp = defaultProfile();
+  return dp ? { ...fresh, ...applyProfileToInvoice(dp) } : fresh;
+}
 
 function readDraft(): InvoiceData | null {
   let raw: string | null = null;
@@ -32,6 +40,9 @@ function readDraft(): InvoiceData | null {
       // Corrupt draft: fall through to a fresh one.
       value = null;
     }
+  } else {
+    // No stored draft: start fresh, with the default profile if one exists.
+    value = freshInvoice();
   }
   cache = { raw, value };
   return value;

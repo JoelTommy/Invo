@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
-import type { InvoiceData, LineItem, PaymentMethodId, TemplateId } from "@/lib/types";
+import type { BusinessProfile, InvoiceData, LineItem, PaymentMethodId, TemplateId } from "@/lib/types";
 import { CURRENCIES, PAYMENT_METHODS } from "@/lib/types";
 import { BankLogo, PayPalLogo, RazorpayLogo, StripeLogo, UpiLogo } from "./PaymentLogos";
 
@@ -9,6 +10,8 @@ interface Props {
   data: InvoiceData;
   update: (patch: Partial<InvoiceData>) => void;
   onClear: () => void;
+  profiles: BusinessProfile[];
+  onSelectProfile: (profile: BusinessProfile | null) => void;
 }
 
 const TEMPLATES: { id: TemplateId; label: string }[] = [
@@ -33,7 +36,7 @@ const METHOD_HINTS: Record<PaymentMethodId, string> = {
   razorpay: "Clients pay through your Razorpay payment link",
 };
 
-export default function InvoiceForm({ data, update, onClear }: Props) {
+export default function InvoiceForm({ data, update, onClear, profiles, onSelectProfile }: Props) {
   const [customOpen, setCustomOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const qrFileRef = useRef<HTMLInputElement>(null);
@@ -114,43 +117,73 @@ export default function InvoiceForm({ data, update, onClear }: Props) {
 
       {/* 2. Business ------------------------------------------------------ */}
       <section className="section-card p-4 sm:p-5" aria-labelledby="s-business">
-        <h2 id="s-business" className="mb-3 text-sm font-bold uppercase tracking-wide">
+        <h2 id="s-business" className="mb-1 text-sm font-bold uppercase tracking-wide">
           2 · Business
         </h2>
         <p className="mb-3 text-sm text-muted">
-          Who is sending this invoice? Saved brands appear here once you sign in — pick one and
-          every detail fills itself in.
+          Pick who is sending this invoice. A profile fills every detail in — you never re-type
+          them.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
+          {profiles.map((p) => {
+            const selected = data.profileId === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className={`border-2 border-ink p-3 text-left ${
+                  selected ? "bg-accent text-accent-contrast" : "bg-panel"
+                }`}
+                aria-pressed={selected}
+                onClick={() => onSelectProfile(p)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-bold">{p.name || "Untitled profile"}</span>
+                  {p.isDefault && (
+                    <span className="font-mono text-[10px] uppercase">default</span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs opacity-70">
+                  {p.upiId || p.bankName || p.email || "No payment details yet"}
+                </p>
+              </button>
+            );
+          })}
+
           {/* One-timer: the guest option, next to the profiles */}
           <button
             type="button"
-            className={`border-2 p-3 text-left ${
-              oneTimer ? "border-ink bg-accent text-accent-contrast" : "border-ink bg-panel"
+            className={`border-2 border-ink p-3 text-left ${
+              oneTimer ? "bg-accent text-accent-contrast" : "bg-panel"
             }`}
             aria-pressed={oneTimer}
-            onClick={() => update({ profileId: null })}
+            onClick={() => onSelectProfile(null)}
           >
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-bold">One-timer</span>
               {oneTimer && <span className="font-mono text-xs">selected</span>}
             </div>
             <p className="mt-1 text-xs opacity-70">
-              A custom invoice without signing in. Type your details once below.
+              A custom invoice without a profile. Type your details once below.
             </p>
           </button>
 
-          {/* Profiles: for signed-in users (Supabase lands in stage 4) */}
-          <div className="border-2 border-ink bg-panel p-3 opacity-70">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-bold">Business profiles</span>
-              <span className="font-mono text-xs">sign in</span>
-            </div>
-            <p className="mt-1 text-xs text-muted">
-              Brands like “Stickies” and “Littles” — one tap each. Arrives with Google sign-in.
-            </p>
-          </div>
+          <Link
+            href="/profiles"
+            className="flex flex-col justify-center border-2 border-dashed border-muted p-3 text-muted hover:border-ink hover:text-ink"
+          >
+            <span className="text-sm font-semibold">Manage profiles →</span>
+            <span className="text-xs">Add brands like “Stickies” or “Littles”.</span>
+          </Link>
         </div>
+
+        {!oneTimer && (
+          <p className="mt-3 text-xs text-muted">
+            Details come from{" "}
+            <strong>{profiles.find((p) => p.id === data.profileId)?.name ?? "the selected profile"}</strong>{" "}
+            — edit them in the Profiles tab. Old invoices keep the details they were made with.
+          </p>
+        )}
 
         {oneTimer && (
           <div className="mt-3 grid gap-3 border-2 border-ink p-3">

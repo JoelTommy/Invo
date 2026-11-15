@@ -79,3 +79,50 @@ export const PAYMENT_METHODS: { id: PaymentMethodId; label: string }[] = [
 ];
 
 export const CURRENCIES: Currency[] = ["INR", "USD", "EUR", "GBP", "AED"];
+
+/** Standard per-app fees. Locked in the UI; may become region-aware later. */
+export const STANDARD_FEES: Record<PaymentMethodId, number> = {
+  upi: 0,
+  bank: 0,
+  paypal: 4.4,
+  stripe: 2.9,
+  razorpay: 2,
+};
+
+/** Payment settings a business profile can default per method. */
+export interface ProfileMethodState {
+  enabled: boolean;
+  clientPays: boolean;
+}
+
+/** A business profile: fill once, reuse on every invoice. */
+export interface BusinessProfile {
+  id: string;
+  name: string;
+  email: string;
+  address: string;
+  taxId: string;
+
+  logoDataUrl: string;
+  upiId: string;
+  upiQrDataUrl: string;
+
+  paypalEmail: string;
+  stripeLink: string;
+  razorpayLink: string;
+  bankAccountName: string;
+  bankName: string;
+  bankAccountNumber: string;
+  bankIfsc: string;
+
+  methods: Record<PaymentMethodId, ProfileMethodState>;
+
+  currency: Currency;
+  taxEnabled: boolean;
+  taxName: string;
+  taxRate: number;
+  template: TemplateId;
+  accentColor: string;
+  notes: string;
+  isDefault: boolean;
+}
