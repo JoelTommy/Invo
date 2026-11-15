@@ -1,0 +1,238 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Theme variables. Every color in the app comes from these.
+   Light and dark values follow the spec exactly; the paper (invoice preview)
+   is always white and never uses theme colors except the accent.
+--------------------------------------------------------------------------- */
+:root {
+  --bg: #e8eaee;
+  --panel: #f7f8fa;
+  --ink: #101216;
+  --accent: #3347ff;
+  --accent-contrast: #ffffff;
+  --muted: #4b5160;
+  --paper: #ffffff;
+}
+
+[data-theme="dark"] {
+  --bg: #15171c;
+  --panel: #1f2229;
+  --ink: #eceef2;
+  --accent: #93a0ff;
+  --accent-contrast: #101216;
+  --muted: #9aa1b2;
+  --paper: #ffffff;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-muted: var(--muted);
+  --color-paper: var(--paper);
+  --font-sans: var(--font-dm-sans);
+  --font-mono: var(--font-dm-mono);
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* ---------------------------------------------------------------------------
+   Brutalist primitives: 2px borders, hard offset shadows, zero radius.
+--------------------------------------------------------------------------- */
+.hard-shadow {
+  box-shadow: 4px 4px 0 0 var(--ink);
+}
+
+.hard-shadow-sm {
+  box-shadow: 3px 3px 0 0 var(--ink);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 2px solid var(--ink);
+  background: var(--panel);
+  color: var(--ink);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 0;
+  box-shadow: 4px 4px 0 0 var(--ink);
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.btn:hover {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 0 var(--ink);
+}
+
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--ink);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.btn-small {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  box-shadow: 3px 3px 0 0 var(--ink);
+}
+
+.btn-small:hover {
+  box-shadow: 4px 4px 0 0 var(--ink);
+}
+
+.btn-small:active {
+  box-shadow: 1px 1px 0 0 var(--ink);
+}
+
+.input,
+.select {
+  border: 2px solid var(--ink);
+  background: var(--panel);
+  color: var(--ink);
+  padding: 0.45rem 0.6rem;
+  width: 100%;
+  border-radius: 0;
+  font-size: 0.9rem;
+}
+
+.input::placeholder {
+  color: var(--muted);
+}
+
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+.section-card {
+  border: 2px solid var(--ink);
+  background: var(--panel);
+  box-shadow: 4px 4px 0 0 var(--ink);
+}
+
+/* Checkbox: square, brutalist. */
+input[type="checkbox"] {
+  appearance: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 2px solid var(--ink);
+  background: var(--panel);
+  border-radius: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+}
+
+input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: var(--accent-contrast);
+  clip-path: polygon(14% 44%, 0 60%, 40% 100%, 100% 16%, 84% 4%, 38% 70%);
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion: kill the lift/sink, keep the color flip.
+--------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn:hover,
+  .btn:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Print: only the invoice paper, at true A4 width (794px @ 96dpi = 210mm).
+--------------------------------------------------------------------------- */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  main {
+    display: block !important;
+  }
+
+  .paper-viewport {
+    position: static !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    display: block !important;
+    height: auto !important;
+  }
+
+  .paper-scale-wrap {
+    transform: none !important;
+    width: 794px !important;
+    height: auto !important;
+    margin: 0 !important;
+  }
+
+  #invoice-paper {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}
