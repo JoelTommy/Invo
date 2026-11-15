@@ -1,32 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
-/** Header theme toggle. Writes the choice to localStorage; the inline script
- *  in the layout applies it before first paint on every visit. */
-export default function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+type Theme = "light" | "dark";
 
-  useEffect(() => {
-    // The theme is set on <html> by the layout's pre-paint script; syncing
-    // that external value into state can only happen after mount.
-    const current = document.documentElement.dataset.theme;
-    if (current === "dark" || current === "light") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTheme(current);
-    }
-  }, []);
+/** The theme lives on <html data-theme> and in localStorage — both external
+ *  to React, so the toggle reads them via useSyncExternalStore. */
+function subscribe(callback: () => void): () => void {
+  window.addEventListener("theme-change", callback);
+  window.addEventListener("storage", callback); // other tabs
+  return () => {
+    window.removeEventListener("theme-change", callback);
+    window.removeEventListener("storage", callback);
+  };
+}
 
-  function toggle() {
-    const next = theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("invoice-theme", next);
-    } catch {
-      // Private browsing: the toggle still works for this visit.
-    }
-    setTheme(next);
+function getSnapshot(): Theme {
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+}
+
+function getServerSnapshot(): Theme {
+  // Matches the layout's pre-paint script default; corrected after hydration.
+  return "light";
+}
+
+function applyTheme(next: Theme) {
+  document.documentElement.dataset.theme = next;
+  try {
+    localStorage.setItem("invoice-theme", next);
+  } catch {
+    // Private browsing: the toggle still works for this visit.
   }
+  window.dispatchEvent(new Event("theme-change"));
+}
+
+export default function ThemeToggle() {
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  const toggle = useCallback(() => {
+    applyTheme(getSnapshot() === "dark" ? "light" : "dark");
+  }, []);
 
   return (
     <button

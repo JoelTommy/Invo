@@ -1,89 +1,69 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import InvoiceForm from "@/components/InvoiceForm";
 import InvoicePreview from "@/components/InvoicePreview";
 import { defaultInvoice } from "@/lib/defaults";
+import {
+  getDraftSnapshot,
+  getServerDraftSnapshot,
+  saveDraft,
+  subscribeDraft,
+} from "@/lib/draft-store";
 import { nextInvoiceNumber } from "@/lib/format";
 import { downloadPdf } from "@/lib/pdf";
 import type { InvoiceData } from "@/lib/types";
 
-const DRAFT_KEY = "invoice-draft-v1";
-
 export default function CreateInvoicePage() {
-  const [data, setData] = useState<InvoiceData | null>(null);
+  // The draft is an external store (localStorage) read through
+  // useSyncExternalStore: null on the server, the saved draft after
+  // hydration, with no setState-in-effect anywhere.
+  const data = useSyncExternalStore(subscribeDraft, getDraftSnapshot, getServerDraftSnapshot);
   const [mode, setMode] = useState<"edit" | "preview">("edit"); // mobile only
   const [pdfError, setPdfError] = useState("");
   const [savedNote, setSavedNote] = useState("");
   const paperRef = useRef<HTMLDivElement>(null);
 
-  // Load the draft once on mount. Reading localStorage synchronously during
-  // render would mismatch server HTML, so this is the hydration-safe pattern.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as InvoiceData;
-        if (parsed && Array.isArray(parsed.items)) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setData({ ...defaultInvoice(), ...parsed });
-          return;
-        }
-      }
-    } catch {
-      // Corrupt draft: fall through to a fresh one.
-    }
-    setData(defaultInvoice());
+  const update = useCallback((patch: Partial<InvoiceData>) => {
+    const current = getDraftSnapshot();
+    if (!current) return;
+    saveDraft({ ...current, ...patch });
   }, []);
 
-  // Persist the draft on every change so a refresh never loses work.
-  useEffect(() => {
-    if (!data) return;
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
-    } catch {
-      // Storage full or blocked (e.g. huge logo). The app keeps working.
-    }
-  }, [data]);
-
-  if (!data) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-16 text-sm text-muted sm:px-6">Loading…</div>
-    );
-  }
-
-  function update(patch: Partial<InvoiceData>) {
-    setData((d) => (d ? { ...d, ...patch } : d));
-  }
-
-  function clearForm() {
-    setData((d) => {
-      const fresh = defaultInvoice();
-      // Keep the suggested number moving forward so numbers stay unique.
-      fresh.invoiceNumber = d ? nextInvoiceNumber(d.invoiceNumber) : fresh.invoiceNumber;
-      return fresh;
-    });
+  const clearForm = useCallback(() => {
+    const current = getDraftSnapshot();
+    const fresh = defaultInvoice();
+    // Keep the suggested number moving forward so numbers stay unique.
+    if (current) fresh.invoiceNumber = nextInvoiceNumber(current.invoiceNumber);
+    saveDraft(fresh);
     setSavedNote("");
     setPdfError("");
-  }
+  }, []);
 
-  async function handleDownloadPdf() {
-    if (!data) return;
+  const handleDownloadPdf = useCallback(async () => {
+    const current = getDraftSnapshot();
+    if (!current) return;
     const paper = paperRef.current?.querySelector("#invoice-paper");
     if (!(paper instanceof HTMLElement)) return;
     setPdfError("");
     try {
-      await downloadPdf(paper, `Invoice-${data.invoiceNumber || "draft"}.pdf`);
+      await downloadPdf(paper, `Invoice-${current.invoiceNumber || "draft"}.pdf`);
     } catch (err) {
       console.error("PDF export failed", err);
       setPdfError("Could not build the PDF. Try again, or use Print and choose “Save as PDF”.");
     }
-  }
+  }, []);
 
   function handleSaveInvoice() {
     // Invoice history (Supabase + history tab) arrives in stages 4–5.
     setSavedNote("Saving to history arrives in a later stage. Your draft is saved in this browser automatically.");
     setTimeout(() => setSavedNote(""), 5000);
+  }
+
+  if (!data) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-16 text-sm text-muted sm:px-6">Loading…</div>
+    );
   }
 
   return (
@@ -144,7 +124,6 @@ export default function CreateInvoicePage() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }
