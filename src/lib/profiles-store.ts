@@ -57,8 +57,12 @@ export function getProfilesSnapshot(): BusinessProfile[] {
   return readProfiles();
 }
 
+// Shared empty snapshot: React requires getServerSnapshot to return the SAME
+// cached reference every call — a fresh [] each time loops and crashes.
+const EMPTY_PROFILES: BusinessProfile[] = [];
+
 export function getServerProfilesSnapshot(): BusinessProfile[] {
-  return [];
+  return EMPTY_PROFILES;
 }
 
 export function getProfile(id: string): BusinessProfile | undefined {
