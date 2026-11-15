@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { InvoiceData, LineItem, PaymentMethodId, TemplateId } from "@/lib/types";
 import { CURRENCIES, PAYMENT_METHODS } from "@/lib/types";
+import { BankLogo, PayPalLogo, RazorpayLogo, StripeLogo, UpiLogo } from "./PaymentLogos";
 
 interface Props {
   data: InvoiceData;
@@ -16,23 +17,31 @@ const TEMPLATES: { id: TemplateId; label: string }[] = [
   { id: "classic", label: "Classic" },
 ];
 
+const METHOD_LOGOS: Record<PaymentMethodId, React.ReactNode> = {
+  upi: <UpiLogo />,
+  bank: <BankLogo />,
+  paypal: <PayPalLogo />,
+  stripe: <StripeLogo />,
+  razorpay: <RazorpayLogo />,
+};
+
+const METHOD_HINTS: Record<PaymentMethodId, string> = {
+  upi: "ID comes from your profile; override below if this invoice uses a different one",
+  bank: "Account details come from your business profile — one account per brand",
+  paypal: "Payouts go to your profile's PayPal email — nothing to enter here",
+  stripe: "Payments settle to your profile's Stripe account — nothing to enter here",
+  razorpay: "Payments settle to your profile's Razorpay account — nothing to enter here",
+};
+
 export default function InvoiceForm({ data, update, onClear }: Props) {
   const [customOpen, setCustomOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const qrFileRef = useRef<HTMLInputElement>(null);
 
+  const oneTimer = data.profileId === null;
+
   function setItem(id: string, patch: Partial<LineItem>) {
     update({ items: data.items.map((it) => (it.id === id ? { ...it, ...patch } : it)) });
-  }
-
-  function addMethodPct(id: PaymentMethodId, delta: number) {
-    const m = data.methods[id];
-    update({
-      methods: {
-        ...data.methods,
-        [id]: { ...m, feePercent: Math.max(0, Math.round((m.feePercent + delta) * 10) / 10) },
-      },
-    });
   }
 
   function readImage(file: File, apply: (dataUrl: string) => void) {
@@ -43,78 +52,10 @@ export default function InvoiceForm({ data, update, onClear }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* 1. Business ------------------------------------------------------ */}
-      <section className="section-card p-4 sm:p-5" aria-labelledby="s-business">
-        <h2 id="s-business" className="mb-3 text-sm font-bold uppercase tracking-wide">
-          1 · Business
-        </h2>
-        <p className="mb-3 text-sm text-muted">
-          Guests use one <strong>Quick invoice</strong> profile. Saved profiles arrive when you
-          sign in.
-        </p>
-        <div className="border-2 border-ink bg-paper p-3" role="button" tabIndex={0}>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold">Quick invoice</span>
-            <span className="font-mono text-xs text-muted">selected</span>
-          </div>
-          <div className="mt-2">
-            <label className="label" htmlFor="business-name">
-              Business name
-            </label>
-            <input
-              id="business-name"
-              className="input"
-              placeholder="Your business"
-              value={data.businessName}
-              onChange={(e) => update({ businessName: e.target.value })}
-            />
-          </div>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            <div>
-              <label className="label" htmlFor="business-email">
-                Email (optional)
-              </label>
-              <input
-                id="business-email"
-                type="email"
-                className="input"
-                placeholder="you@business.com"
-                value={data.businessEmail}
-                onChange={(e) => update({ businessEmail: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label" htmlFor="business-taxid">
-                Tax ID (optional)
-              </label>
-              <input
-                id="business-taxid"
-                className="input"
-                placeholder="GSTIN / VAT"
-                value={data.businessTaxId}
-                onChange={(e) => update({ businessTaxId: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="mt-2">
-            <label className="label" htmlFor="business-address">
-              Address (optional)
-            </label>
-            <input
-              id="business-address"
-              className="input"
-              placeholder="Street, city, PIN"
-              value={data.businessAddress}
-              onChange={(e) => update({ businessAddress: e.target.value })}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* 2. Client -------------------------------------------------------- */}
+      {/* 1. Client -------------------------------------------------------- */}
       <section className="section-card p-4 sm:p-5" aria-labelledby="s-client">
         <h2 id="s-client" className="mb-3 text-sm font-bold uppercase tracking-wide">
-          2 · Client
+          1 · Client
         </h2>
         <div className="grid gap-3">
           <div>
@@ -130,31 +71,142 @@ export default function InvoiceForm({ data, update, onClear }: Props) {
             />
           </div>
           <div>
-            <label className="label" htmlFor="client-email">
-              Email (optional)
+            <label className="label" htmlFor="client-business">
+              Client&apos;s business (optional)
             </label>
             <input
-              id="client-email"
-              type="email"
+              id="client-business"
               className="input"
-              placeholder="client@company.com"
-              value={data.clientEmail}
-              onChange={(e) => update({ clientEmail: e.target.value })}
+              placeholder="Their company"
+              value={data.clientBusinessName}
+              onChange={(e) => update({ clientBusinessName: e.target.value })}
             />
           </div>
-          <div>
-            <label className="label" htmlFor="client-address">
-              Address (optional)
-            </label>
-            <input
-              id="client-address"
-              className="input"
-              placeholder="Street, city, PIN"
-              value={data.clientAddress}
-              onChange={(e) => update({ clientAddress: e.target.value })}
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="client-email">
+                Email (optional)
+              </label>
+              <input
+                id="client-email"
+                type="email"
+                className="input"
+                placeholder="client@company.com"
+                value={data.clientEmail}
+                onChange={(e) => update({ clientEmail: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="client-address">
+                Address (optional)
+              </label>
+              <input
+                id="client-address"
+                className="input"
+                placeholder="Street, city, PIN"
+                value={data.clientAddress}
+                onChange={(e) => update({ clientAddress: e.target.value })}
+              />
+            </div>
           </div>
         </div>
+      </section>
+
+      {/* 2. Business ------------------------------------------------------ */}
+      <section className="section-card p-4 sm:p-5" aria-labelledby="s-business">
+        <h2 id="s-business" className="mb-3 text-sm font-bold uppercase tracking-wide">
+          2 · Business
+        </h2>
+        <p className="mb-3 text-sm text-muted">
+          Who is sending this invoice? Saved brands appear here once you sign in — pick one and
+          every detail fills itself in.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {/* One-timer: the guest option, next to the profiles */}
+          <button
+            type="button"
+            className={`border-2 p-3 text-left ${
+              oneTimer ? "border-ink bg-accent text-accent-contrast" : "border-ink bg-panel"
+            }`}
+            aria-pressed={oneTimer}
+            onClick={() => update({ profileId: null })}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-bold">One-timer</span>
+              {oneTimer && <span className="font-mono text-xs">selected</span>}
+            </div>
+            <p className="mt-1 text-xs opacity-70">
+              A custom invoice without signing in. Type your details once below.
+            </p>
+          </button>
+
+          {/* Profiles: for signed-in users (Supabase lands in stage 4) */}
+          <div className="border-2 border-ink bg-panel p-3 opacity-70">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-bold">Business profiles</span>
+              <span className="font-mono text-xs">sign in</span>
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              Brands like “Stickies” and “Littles” — one tap each. Arrives with Google sign-in.
+            </p>
+          </div>
+        </div>
+
+        {oneTimer && (
+          <div className="mt-3 grid gap-3 border-2 border-ink p-3">
+            <div>
+              <label className="label" htmlFor="business-name">
+                Your business name
+              </label>
+              <input
+                id="business-name"
+                className="input"
+                placeholder="Appears at the top of the invoice"
+                value={data.businessName}
+                onChange={(e) => update({ businessName: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="business-email">
+                  Email (optional)
+                </label>
+                <input
+                  id="business-email"
+                  type="email"
+                  className="input"
+                  placeholder="you@business.com"
+                  value={data.businessEmail}
+                  onChange={(e) => update({ businessEmail: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label" htmlFor="business-taxid">
+                  Tax ID (optional)
+                </label>
+                <input
+                  id="business-taxid"
+                  className="input"
+                  placeholder="GSTIN / VAT"
+                  value={data.businessTaxId}
+                  onChange={(e) => update({ businessTaxId: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="label" htmlFor="business-address">
+                Address (optional)
+              </label>
+              <input
+                id="business-address"
+                className="input"
+                placeholder="Street, city, PIN"
+                value={data.businessAddress}
+                onChange={(e) => update({ businessAddress: e.target.value })}
+              />
+            </div>
+          </div>
+        )}
       </section>
 
       {/* 3. Invoice ------------------------------------------------------- */}
@@ -278,7 +330,10 @@ export default function InvoiceForm({ data, update, onClear }: Props) {
             className="btn btn-small mt-2"
             onClick={() =>
               update({
-                items: [...data.items, { id: Math.random().toString(36).slice(2, 10), description: "", quantity: 1, rate: 0 }],
+                items: [
+                  ...data.items,
+                  { id: Math.random().toString(36).slice(2, 10), description: "", quantity: 1, rate: 0 },
+                ],
               })
             }
           >
@@ -339,76 +394,95 @@ export default function InvoiceForm({ data, update, onClear }: Props) {
           5 · Payment options
         </h2>
         <p className="mb-3 text-sm text-muted">
-          Tick the ways you accept money. If the client pays the fee, the invoice shows the exact
-          amount to send.
+          Tick how this client can pay. The details behind each option come from your business
+          profile — you never type them here.
         </p>
-        <div className="flex flex-col divide-y-2 divide-ink">
+        <div className="grid gap-3 sm:grid-cols-2">
           {PAYMENT_METHODS.map(({ id, label }) => {
             const m = data.methods[id];
+            const chip = m.enabled
+              ? "border-ink bg-accent text-accent-contrast"
+              : "border-ink bg-panel";
             return (
-              <div key={id} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={m.enabled}
-                      onChange={(e) =>
-                        update({
-                          methods: { ...data.methods, [id]: { ...m, enabled: e.target.checked } },
-                        })
-                      }
-                    />
-                    {label}
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={m.clientPays}
-                      onChange={(e) =>
-                        update({
-                          methods: {
-                            ...data.methods,
-                            [id]: { ...m, clientPays: e.target.checked },
-                          },
-                        })
-                      }
-                    />
-                    Client pays the fee
-                  </label>
-                </div>
-                {m.enabled && m.clientPays && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">Fee %</span>
-                    <input
-                      className="input font-mono w-24"
-                      type="number"
-                      min={0}
-                      max={99}
-                      step="any"
-                      value={m.feePercent}
-                      onChange={(e) =>
-                        update({
-                          methods: {
-                            ...data.methods,
-                            [id]: { ...m, feePercent: Number(e.target.value) },
-                          },
-                        })
-                      }
-                    />
-                    <span className="flex gap-1">
-                      <button type="button" className="btn btn-small" onClick={() => addMethodPct(id, -0.5)} aria-label={`Decrease ${label} fee`}>
-                        −
-                      </button>
-                      <button type="button" className="btn btn-small" onClick={() => addMethodPct(id, 0.5)} aria-label={`Increase ${label} fee`}>
-                        +
-                      </button>
-                    </span>
+              <div key={id} className="border-2 border-ink bg-panel">
+                <label className={`flex cursor-pointer items-center gap-3 p-3 ${chip}`}>
+                  <input
+                    type="checkbox"
+                    checked={m.enabled}
+                    onChange={(e) =>
+                      update({
+                        methods: { ...data.methods, [id]: { ...m, enabled: e.target.checked } },
+                      })
+                    }
+                  />
+                  <span className="flex items-center">{METHOD_LOGOS[id]}</span>
+                  <span className="text-sm font-semibold">
+                    {id === "bank" ? "Bank transfer" : id === "upi" ? "UPI" : label}
+                  </span>
+                </label>
+
+                {m.enabled && (
+                  <div className="border-t-2 border-ink p-3">
+                    <p className="text-xs text-muted">{METHOD_HINTS[id]}</p>
+                    <label className="mt-2 flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={m.clientPays}
+                        onChange={(e) =>
+                          update({
+                            methods: {
+                              ...data.methods,
+                              [id]: { ...m, clientPays: e.target.checked },
+                            },
+                          })
+                        }
+                      />
+                      Client pays the fee
+                    </label>
+                    {m.clientPays && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-sm">Fee %</span>
+                        <input
+                          className="input font-mono w-24"
+                          type="number"
+                          min={0}
+                          max={99}
+                          step="any"
+                          value={m.feePercent}
+                          onChange={(e) =>
+                            update({
+                              methods: {
+                                ...data.methods,
+                                [id]: { ...m, feePercent: Number(e.target.value) },
+                              },
+                            })
+                          }
+                        />
+                      </div>
+                    )}
+                    {id === "upi" && (
+                      <div className="mt-2">
+                        <label className="label" htmlFor="upi-override">
+                          UPI ID for this invoice (optional)
+                        </label>
+                        <input
+                          id="upi-override"
+                          className="input font-mono"
+                          placeholder="name@bank — UPI IDs change often"
+                          value={data.upiId}
+                          onChange={(e) => update({ upiId: e.target.value })}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             );
           })}
         </div>
+        <p className="mt-3 text-xs text-muted">
+          One-off bank details for this invoice live in Custom options below.
+        </p>
       </section>
 
       {/* 6. Custom options (collapsed by default) ------------------------- */}
@@ -427,7 +501,7 @@ export default function InvoiceForm({ data, update, onClear }: Props) {
           </button>
         </div>
         <p className="mt-2 text-sm text-muted">
-          Logos, QRs, one-off overrides and template choices. Most invoices don’t need these.
+          Logos, QRs, one-off bank details and template choices. Most invoices don’t need these.
         </p>
 
         {customOpen && (
@@ -490,21 +564,9 @@ export default function InvoiceForm({ data, update, onClear }: Props) {
 
             <details className="border-2 border-ink">
               <summary className="cursor-pointer p-2 text-sm font-semibold">
-                Override payment details for this invoice only
+                Bank details for this invoice only
               </summary>
               <div className="grid gap-3 p-3 pt-0 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label className="label" htmlFor="ov-upi">
-                    UPI ID
-                  </label>
-                  <input
-                    id="ov-upi"
-                    className="input font-mono"
-                    placeholder="name@bank"
-                    value={data.upiId}
-                    onChange={(e) => update({ upiId: e.target.value })}
-                  />
-                </div>
                 <div>
                   <label className="label" htmlFor="ov-acname">
                     Account name

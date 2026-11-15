@@ -19,7 +19,12 @@ export interface PaymentMethodState {
 }
 
 export interface InvoiceData {
-  // Business (guests: single "Quick invoice" name; profiles arrive in stage 2)
+  // Which business this invoice is from. null = guest "One-timer".
+  // Real profiles (Stickies, Littles, …) arrive with sign-in in stage 2+.
+  profileId: string | null;
+
+  // Business (only editable when the One-timer option is selected; comes
+  // from the selected profile otherwise)
   businessName: string;
   businessEmail: string;
   businessAddress: string;
@@ -27,6 +32,7 @@ export interface InvoiceData {
 
   // Client
   clientName: string;
+  clientBusinessName: string;
   clientEmail: string;
   clientAddress: string;
 

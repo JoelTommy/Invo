@@ -9,14 +9,16 @@ const METHODS: Record<PaymentMethodId, PaymentMethodState> = {
   razorpay: { enabled: false, clientPays: true, feePercent: 2 },
 };
 
-/** A blank invoice as a guest sees it on first visit. */
+/** A blank invoice as it opens: guest mode (One-timer), client box first. */
 export function defaultInvoice(): InvoiceData {
   return {
+    profileId: null,
     businessName: "",
     businessEmail: "",
     businessAddress: "",
     businessTaxId: "",
     clientName: "",
+    clientBusinessName: "",
     clientEmail: "",
     clientAddress: "",
     invoiceNumber: "INV-001",

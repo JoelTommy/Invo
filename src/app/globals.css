@@ -220,7 +220,7 @@ input[type="checkbox"]:focus-visible {
 
   .paper-scale-wrap {
     transform: none !important;
-    width: 794px !important;
+    width: 559px !important; /* A5 width at 96dpi = 148mm */
     height: auto !important;
     margin: 0 !important;
   }
@@ -232,7 +232,7 @@ input[type="checkbox"]:focus-visible {
   }
 
   @page {
-    size: A4;
+    size: A5;
     margin: 0;
   }
 }

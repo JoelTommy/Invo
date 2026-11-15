@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import SignInModal from "./SignInModal";
 import ThemeToggle from "./ThemeToggle";
 
 const TABS = [
@@ -12,6 +14,14 @@ const TABS = [
 
 export default function Header() {
   const pathname = usePathname();
+  const [signInOpen, setSignInOpen] = useState(false);
+
+  // "Save invoice" on the Create page opens this same modal.
+  useEffect(() => {
+    const open = () => setSignInOpen(true);
+    window.addEventListener("open-signin", open);
+    return () => window.removeEventListener("open-signin", open);
+  }, []);
 
   return (
     <header className="no-print border-b-2 border-ink bg-panel">
@@ -41,9 +51,14 @@ export default function Header() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          <button type="button" className="btn btn-small" onClick={() => setSignInOpen(true)}>
+            Sign in
+          </button>
           <ThemeToggle />
         </div>
       </div>
+
+      <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} />
     </header>
   );
 }

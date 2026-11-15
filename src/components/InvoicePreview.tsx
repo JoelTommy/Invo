@@ -6,7 +6,7 @@ import type { InvoiceData } from "@/lib/types";
 import { computeTotals, formatDate, formatMoney } from "@/lib/format";
 import { buildUpiLink, canGenerateUpiQr, generateQrDataUrl } from "@/lib/upi";
 
-const PAPER_WIDTH = 794; // A4 width at 96dpi = 210mm
+const PAPER_WIDTH = 559; // A5 width at 96dpi = 148mm
 
 interface PreviewProps {
   data: InvoiceData;
@@ -54,7 +54,7 @@ function Paper({ data, qrDataUrl }: PreviewProps & { qrDataUrl: string }) {
     <article
       id="invoice-paper"
       style={{ ["--paper-accent" as string]: accent }}
-      className="bg-paper text-[13px] leading-snug text-[#101216]"
+      className="bg-paper text-[12px] leading-snug text-[#101216]"
     >
       {data.template === "brutal" && <BrutalTemplate data={data} totals={totals} qrDataUrl={qrDataUrl} />}
       {data.template === "plain" && <PlainTemplate data={data} totals={totals} qrDataUrl={qrDataUrl} />}
@@ -186,7 +186,7 @@ function NotesAndQr({ data, qrDataUrl }: TemplateProps) {
 function BrutalTemplate(props: TemplateProps) {
   const { data } = props;
   return (
-    <div className="p-10">
+    <div className="p-7">
       <header
         className="mb-6 flex items-start justify-between gap-6 p-4"
         style={{ border: "2px solid var(--paper-accent)", background: "var(--paper-accent)", color: pickContrast(data.accentColor) }}
@@ -202,18 +202,19 @@ function BrutalTemplate(props: TemplateProps) {
               className="mb-2 h-auto max-h-14 w-auto object-contain"
             />
           )}
-          <h1 className="text-xl font-extrabold uppercase tracking-wide">{data.businessName || "Your business"}</h1>
+          <h1 className="text-lg font-extrabold uppercase tracking-wide">{data.businessName || "Your business"}</h1>
           {data.businessAddress && <p className="text-[12px]">{data.businessAddress}</p>}
           {data.businessEmail && <p className="text-[12px]">{data.businessEmail}</p>}
           {data.businessTaxId && <p className="text-[12px] font-mono">{data.businessTaxId}</p>}
         </div>
-        <h2 className="text-3xl font-black tracking-tight">INVOICE</h2>
+        <h2 className="text-2xl font-black tracking-tight">INVOICE</h2>
       </header>
 
       <div className="mb-6 flex flex-wrap justify-between gap-6">
-        <div className="min-w-48">
+        <div className="min-w-40">
           <h3 className="text-[11px] font-bold uppercase tracking-widest opacity-60">Bill to</h3>
           <p className="font-bold">{data.clientName || "Client name"}</p>
+          {data.clientBusinessName && <p>{data.clientBusinessName}</p>}
           {data.clientAddress && <p>{data.clientAddress}</p>}
           {data.clientEmail && <p>{data.clientEmail}</p>}
         </div>
@@ -239,7 +240,7 @@ function BrutalTemplate(props: TemplateProps) {
 function PlainTemplate(props: TemplateProps) {
   const { data } = props;
   return (
-    <div className="p-10">
+    <div className="p-7">
       <header className="mb-8 flex items-start justify-between gap-6">
         <div>
           {data.logoDataUrl && (
@@ -266,6 +267,7 @@ function PlainTemplate(props: TemplateProps) {
         <div>
           <h3 className="text-[11px] font-bold uppercase tracking-widest opacity-60">Bill to</h3>
           <p className="font-bold">{data.clientName || "Client name"}</p>
+          {data.clientBusinessName && <p>{data.clientBusinessName}</p>}
           {data.clientAddress && <p className="opacity-70">{data.clientAddress}</p>}
           {data.clientEmail && <p className="opacity-70">{data.clientEmail}</p>}
         </div>
@@ -290,7 +292,7 @@ function PlainTemplate(props: TemplateProps) {
 function ClassicTemplate(props: TemplateProps) {
   const { data } = props;
   return (
-    <div className="p-10">
+    <div className="p-7">
       <header className="mb-6 text-center">
         {data.logoDataUrl && (
           <Image
@@ -302,7 +304,7 @@ function ClassicTemplate(props: TemplateProps) {
             className="mx-auto mb-3 h-auto max-h-16 w-auto object-contain"
           />
         )}
-        <h1 className="text-xl font-bold tracking-[0.2em] uppercase">{data.businessName || "Your business"}</h1>
+        <h1 className="text-lg font-bold tracking-[0.2em] uppercase">{data.businessName || "Your business"}</h1>
         {(data.businessAddress || data.businessEmail || data.businessTaxId) && (
           <p className="text-[12px] opacity-60">
             {[data.businessAddress, data.businessEmail, data.businessTaxId].filter(Boolean).join(" · ")}
@@ -316,6 +318,7 @@ function ClassicTemplate(props: TemplateProps) {
         <div>
           <h3 className="text-[11px] font-bold uppercase tracking-widest opacity-60">Bill to</h3>
           <p className="font-bold">{data.clientName || "Client name"}</p>
+          {data.clientBusinessName && <p>{data.clientBusinessName}</p>}
           {data.clientAddress && <p className="opacity-70">{data.clientAddress}</p>}
           {data.clientEmail && <p className="opacity-70">{data.clientEmail}</p>}
         </div>

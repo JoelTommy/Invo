@@ -21,7 +21,6 @@ export default function CreateInvoicePage() {
   const data = useSyncExternalStore(subscribeDraft, getDraftSnapshot, getServerDraftSnapshot);
   const [mode, setMode] = useState<"edit" | "preview">("edit"); // mobile only
   const [pdfError, setPdfError] = useState("");
-  const [savedNote, setSavedNote] = useState("");
   const paperRef = useRef<HTMLDivElement>(null);
 
   const update = useCallback((patch: Partial<InvoiceData>) => {
@@ -36,7 +35,6 @@ export default function CreateInvoicePage() {
     // Keep the suggested number moving forward so numbers stay unique.
     if (current) fresh.invoiceNumber = nextInvoiceNumber(current.invoiceNumber);
     saveDraft(fresh);
-    setSavedNote("");
     setPdfError("");
   }, []);
 
@@ -54,11 +52,11 @@ export default function CreateInvoicePage() {
     }
   }, []);
 
-  function handleSaveInvoice() {
-    // Invoice history (Supabase + history tab) arrives in stages 4–5.
-    setSavedNote("Saving to history arrives in a later stage. Your draft is saved in this browser automatically.");
-    setTimeout(() => setSavedNote(""), 5000);
-  }
+  const handleSaveInvoice = useCallback(() => {
+    // Logged-out: pressing "Save invoice" prompts the sign-in flow
+    // (Google OAuth itself connects in stage 4).
+    window.dispatchEvent(new Event("open-signin"));
+  }, []);
 
   if (!data) {
     return (
@@ -112,11 +110,6 @@ export default function CreateInvoicePage() {
           {pdfError && (
             <p className="no-print mb-3 border-2 border-ink bg-panel p-2 text-sm" role="alert">
               {pdfError}
-            </p>
-          )}
-          {savedNote && (
-            <p className="no-print mb-3 border-2 border-ink bg-panel p-2 text-sm" role="status">
-              {savedNote}
             </p>
           )}
           <div ref={paperRef} className="lg:sticky lg:top-6">
