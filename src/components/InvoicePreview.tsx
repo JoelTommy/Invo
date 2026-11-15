@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { InvoiceData } from "@/lib/types";
 import { computeTotals, formatDate, formatMoney } from "@/lib/format";
@@ -173,8 +174,7 @@ function NotesAndQr({ data, qrDataUrl }: TemplateProps) {
   return (
     <section className="mt-4 flex items-start gap-4">
       {qrDataUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={qrDataUrl} alt="Payment QR code" width={96} height={96} />
+        <Image src={qrDataUrl} alt="Payment QR code" width={96} height={96} unoptimized />
       )}
       {data.notes && <p className="text-[12px] opacity-70">{data.notes}</p>}
     </section>
@@ -193,8 +193,14 @@ function BrutalTemplate(props: TemplateProps) {
       >
         <div>
           {data.logoDataUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoDataUrl} alt="Business logo" className="mb-2 max-h-14 object-contain" />
+            <Image
+              src={data.logoDataUrl}
+              alt="Business logo"
+              width={220}
+              height={56}
+              unoptimized
+              className="mb-2 h-auto max-h-14 w-auto object-contain"
+            />
           )}
           <h1 className="text-xl font-extrabold uppercase tracking-wide">{data.businessName || "Your business"}</h1>
           {data.businessAddress && <p className="text-[12px]">{data.businessAddress}</p>}
@@ -237,8 +243,14 @@ function PlainTemplate(props: TemplateProps) {
       <header className="mb-8 flex items-start justify-between gap-6">
         <div>
           {data.logoDataUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoDataUrl} alt="Business logo" className="mb-2 max-h-14 object-contain" />
+            <Image
+              src={data.logoDataUrl}
+              alt="Business logo"
+              width={220}
+              height={56}
+              unoptimized
+              className="mb-2 h-auto max-h-14 w-auto object-contain"
+            />
           )}
           <h1 className="text-lg font-extrabold">{data.businessName || "Your business"}</h1>
           {data.businessAddress && <p className="text-[12px] opacity-60">{data.businessAddress}</p>}
@@ -281,8 +293,14 @@ function ClassicTemplate(props: TemplateProps) {
     <div className="p-10">
       <header className="mb-6 text-center">
         {data.logoDataUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={data.logoDataUrl} alt="Business logo" className="mx-auto mb-3 max-h-16 object-contain" />
+          <Image
+            src={data.logoDataUrl}
+            alt="Business logo"
+            width={220}
+            height={56}
+            unoptimized
+            className="mx-auto mb-3 h-auto max-h-16 w-auto object-contain"
+          />
         )}
         <h1 className="text-xl font-bold tracking-[0.2em] uppercase">{data.businessName || "Your business"}</h1>
         {(data.businessAddress || data.businessEmail || data.businessTaxId) && (
