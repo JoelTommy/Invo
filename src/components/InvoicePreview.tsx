@@ -144,11 +144,17 @@ function PaymentDetails({ data, totals }: TemplateProps) {
         {PAYMENT_IDS.filter((id) => id !== "upi" && id !== "bank").map((id) => {
           if (!data.methods[id].enabled) return null;
           const label = { paypal: "PayPal", stripe: "Stripe", razorpay: "Razorpay" }[id] as string;
+          const detail = {
+            paypal: data.paypalEmail,
+            stripe: data.stripeLink,
+            razorpay: data.razorpayLink,
+          }[id] as string;
           const m = data.methods[id];
           const payable = totals.payables.find((p) => p.methodId === id);
           return (
             <div key={id}>
               <div className="font-bold">{label}</div>
+              {detail && <div className="break-all font-mono text-[11px]">{detail}</div>}
               {payable ? (
                 <div className="font-mono">
                   {money(payable.payable)}{" "}

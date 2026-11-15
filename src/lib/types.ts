@@ -51,8 +51,12 @@ export interface InvoiceData {
   // Payment options
   methods: Record<PaymentMethodId, PaymentMethodState>;
 
-  // Payment details (live in Custom options; profiles override these in stage 2+)
+  // One-timer payment details (a signed-in profile supplies these instead;
+  // UPI also has a per-invoice override because VPAs change often)
   upiId: string;
+  paypalEmail: string;
+  stripeLink: string;
+  razorpayLink: string;
   bankAccountName: string;
   bankName: string;
   bankAccountNumber: string;

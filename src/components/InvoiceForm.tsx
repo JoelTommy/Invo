@@ -26,11 +26,11 @@ const METHOD_LOGOS: Record<PaymentMethodId, React.ReactNode> = {
 };
 
 const METHOD_HINTS: Record<PaymentMethodId, string> = {
-  upi: "ID comes from your profile; override below if this invoice uses a different one",
-  bank: "Account details come from your business profile — one account per brand",
-  paypal: "Payouts go to your profile's PayPal email — nothing to enter here",
-  stripe: "Payments settle to your profile's Stripe account — nothing to enter here",
-  razorpay: "Payments settle to your profile's Razorpay account — nothing to enter here",
+  upi: "Your UPI ID — VPAs change often, so this one stays editable",
+  bank: "One account per brand; one-timer invoices enter it here, profiles fill it automatically",
+  paypal: "Clients pay your PayPal email directly",
+  stripe: "Clients pay through your Stripe payment link",
+  razorpay: "Clients pay through your Razorpay payment link",
 };
 
 export default function InvoiceForm({ data, update, onClear }: Props) {
@@ -440,38 +440,113 @@ export default function InvoiceForm({ data, update, onClear }: Props) {
                       Client pays the fee
                     </label>
                     {m.clientPays && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-sm">Fee %</span>
-                        <input
-                          className="input font-mono w-24"
-                          type="number"
-                          min={0}
-                          max={99}
-                          step="any"
-                          value={m.feePercent}
-                          onChange={(e) =>
-                            update({
-                              methods: {
-                                ...data.methods,
-                                [id]: { ...m, feePercent: Number(e.target.value) },
-                              },
-                            })
-                          }
-                        />
-                      </div>
+                      <p className="mt-2 font-mono text-xs">
+                        Standard fee: {m.feePercent}% — fixed per app, adjusts by region later
+                      </p>
                     )}
-                    {id === "upi" && (
+                    {oneTimer && id === "upi" && (
                       <div className="mt-2">
                         <label className="label" htmlFor="upi-override">
-                          UPI ID for this invoice (optional)
+                          UPI ID
                         </label>
                         <input
                           id="upi-override"
                           className="input font-mono"
-                          placeholder="name@bank — UPI IDs change often"
+                          placeholder="name@bank — VPAs change often"
                           value={data.upiId}
                           onChange={(e) => update({ upiId: e.target.value })}
                         />
+                      </div>
+                    )}
+                    {oneTimer && id === "paypal" && (
+                      <div className="mt-2">
+                        <label className="label" htmlFor="paypal-email">
+                          PayPal email
+                        </label>
+                        <input
+                          id="paypal-email"
+                          type="email"
+                          className="input"
+                          placeholder="you@business.com"
+                          value={data.paypalEmail}
+                          onChange={(e) => update({ paypalEmail: e.target.value })}
+                        />
+                      </div>
+                    )}
+                    {oneTimer && id === "stripe" && (
+                      <div className="mt-2">
+                        <label className="label" htmlFor="stripe-link">
+                          Stripe payment link
+                        </label>
+                        <input
+                          id="stripe-link"
+                          className="input font-mono"
+                          placeholder="buy.stripe.com/…"
+                          value={data.stripeLink}
+                          onChange={(e) => update({ stripeLink: e.target.value })}
+                        />
+                      </div>
+                    )}
+                    {oneTimer && id === "razorpay" && (
+                      <div className="mt-2">
+                        <label className="label" htmlFor="razorpay-link">
+                          Razorpay payment link
+                        </label>
+                        <input
+                          id="razorpay-link"
+                          className="input font-mono"
+                          placeholder="rzp.io/…"
+                          value={data.razorpayLink}
+                          onChange={(e) => update({ razorpayLink: e.target.value })}
+                        />
+                      </div>
+                    )}
+                    {oneTimer && id === "bank" && (
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div>
+                          <label className="label" htmlFor="ov-acname">
+                            Account name
+                          </label>
+                          <input
+                            id="ov-acname"
+                            className="input"
+                            value={data.bankAccountName}
+                            onChange={(e) => update({ bankAccountName: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="label" htmlFor="ov-bank">
+                            Bank
+                          </label>
+                          <input
+                            id="ov-bank"
+                            className="input"
+                            value={data.bankName}
+                            onChange={(e) => update({ bankName: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="label" htmlFor="ov-acno">
+                            Account number
+                          </label>
+                          <input
+                            id="ov-acno"
+                            className="input font-mono"
+                            value={data.bankAccountNumber}
+                            onChange={(e) => update({ bankAccountNumber: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="label" htmlFor="ov-ifsc">
+                            IFSC / SWIFT
+                          </label>
+                          <input
+                            id="ov-ifsc"
+                            className="input font-mono"
+                            value={data.bankIfsc}
+                            onChange={(e) => update({ bankIfsc: e.target.value })}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -481,7 +556,8 @@ export default function InvoiceForm({ data, update, onClear }: Props) {
           })}
         </div>
         <p className="mt-3 text-xs text-muted">
-          One-off bank details for this invoice live in Custom options below.
+          Signed-in brands pull these details from their profile automatically — the boxes above
+          only appear for one-timer invoices.
         </p>
       </section>
 
@@ -561,58 +637,6 @@ export default function InvoiceForm({ data, update, onClear }: Props) {
                 )}
               </div>
             </div>
-
-            <details className="border-2 border-ink">
-              <summary className="cursor-pointer p-2 text-sm font-semibold">
-                Bank details for this invoice only
-              </summary>
-              <div className="grid gap-3 p-3 pt-0 sm:grid-cols-2">
-                <div>
-                  <label className="label" htmlFor="ov-acname">
-                    Account name
-                  </label>
-                  <input
-                    id="ov-acname"
-                    className="input"
-                    value={data.bankAccountName}
-                    onChange={(e) => update({ bankAccountName: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="ov-bank">
-                    Bank
-                  </label>
-                  <input
-                    id="ov-bank"
-                    className="input"
-                    value={data.bankName}
-                    onChange={(e) => update({ bankName: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="ov-acno">
-                    Account number
-                  </label>
-                  <input
-                    id="ov-acno"
-                    className="input font-mono"
-                    value={data.bankAccountNumber}
-                    onChange={(e) => update({ bankAccountNumber: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="ov-ifsc">
-                    IFSC / SWIFT
-                  </label>
-                  <input
-                    id="ov-ifsc"
-                    className="input font-mono"
-                    value={data.bankIfsc}
-                    onChange={(e) => update({ bankIfsc: e.target.value })}
-                  />
-                </div>
-              </div>
-            </details>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
