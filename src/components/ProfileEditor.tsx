@@ -148,7 +148,7 @@ export default function ProfileEditor({ profile, onSave, onDuplicate, onDelete }
           <p className="text-sm text-muted">
             Saved once, shown on every invoice. The UPI ID can still be changed per invoice.
           </p>
-          {PAYMENT_METHODS.map(({ id, label }) => (
+          {PAYMENT_METHODS.map(({ id }) => (
             <div className="pm" key={id}>
               <div className="ph">{METHOD_LOGOS[id]}</div>
               {id === "upi" && (
