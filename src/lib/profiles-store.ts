@@ -1,16 +1,24 @@
-import type { BusinessProfile, Currency, PaymentMethodId, TemplateId } from "./types";
+import type { BusinessProfile, Currency, InvoiceData, PaymentMethodId, TemplateId } from "./types";
 import { STANDARD_FEES } from "./types";
-import { uid } from "./format";
+import { supabase } from "./supabase";
+import { currentUserId } from "./auth";
 
 /**
  * Business profiles live in localStorage and are read through
- * useSyncExternalStore (same pattern as the draft). Stage 4 syncs them to
- * Supabase once the user signs in.
+ * useSyncExternalStore. When the user is signed in, every change mirrors to
+ * the Supabase `businesses` table (RLS limits each user to their own rows),
+ * and a pull-merge runs on sign-in so other devices catch up.
+ * Last write wins, compared by updatedAt.
  */
 const PROFILES_KEY = "profiles-v1";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 let cache: { raw: string | null; value: BusinessProfile[] } | null = null;
 const listeners = new Set<() => void>();
+
+function notify() {
+  listeners.forEach((cb) => cb());
+}
 
 function readProfiles(): BusinessProfile[] {
   let raw: string | null = null;
@@ -30,6 +38,26 @@ function readProfiles(): BusinessProfile[] {
       value = [];
     }
   }
+
+  // One-time migration: profiles created before cloud sync used short ids.
+  // The cloud `businesses.id` column is a UUID, so give legacy profiles real
+  // UUIDs now and let the draft remap its reference via "profiles-remapped".
+  const remap: Record<string, string> = {};
+  for (const p of value) {
+    if (!UUID_RE.test(p.id)) {
+      remap[p.id] = crypto.randomUUID();
+    }
+  }
+  if (Object.keys(remap).length > 0) {
+    value = value.map((p) => (remap[p.id] ? { ...p, id: remap[p.id] } : p));
+    try {
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(value));
+    } catch {
+      // Storage blocked: remap stays in memory for this visit.
+    }
+    window.dispatchEvent(new CustomEvent("profiles-remapped", { detail: remap }));
+  }
+
   cache = { raw, value };
   return value;
 }
@@ -41,14 +69,16 @@ function persist(profiles: BusinessProfile[]) {
   } catch {
     // Storage blocked (private browsing): keep working in memory.
   }
-  listeners.forEach((cb) => cb());
+  notify();
 }
 
 export function subscribeProfiles(callback: () => void): () => void {
   window.addEventListener("storage", callback); // other tabs
+  window.addEventListener("profiles-synced", callback);
   listeners.add(callback);
   return () => {
     window.removeEventListener("storage", callback);
+    window.removeEventListener("profiles-synced", callback);
     listeners.delete(callback);
   };
 }
@@ -72,7 +102,8 @@ export function getProfile(id: string): BusinessProfile | undefined {
 /** A blank profile with sensible Indian-freelancer defaults. */
 export function blankProfile(): BusinessProfile {
   return {
-    id: uid(),
+    id: crypto.randomUUID(),
+    updatedAt: new Date().toISOString(),
     name: "",
     email: "",
     address: "",
@@ -105,22 +136,25 @@ export function blankProfile(): BusinessProfile {
   };
 }
 
-export function saveProfile(profile: BusinessProfile) {
+export async function saveProfile(profile: BusinessProfile) {
+  const withTimestamp: BusinessProfile = { ...profile, updatedAt: new Date().toISOString() };
   const profiles = readProfiles();
   const exists = profiles.some((p) => p.id === profile.id);
   let next = exists
-    ? profiles.map((p) => (p.id === profile.id ? profile : p))
-    : [...profiles, profile];
+    ? profiles.map((p) => (p.id === profile.id ? withTimestamp : p))
+    : [...profiles, withTimestamp];
 
   // Only one default at a time.
-  if (profile.isDefault) {
-    next = next.map((p) => (p.id === profile.id ? p : { ...p, isDefault: false }));
+  if (withTimestamp.isDefault) {
+    next = next.map((p) => (p.id === withTimestamp.id ? p : { ...p, isDefault: false }));
   }
   persist(next);
+  await cloudUpsert(withTimestamp);
 }
 
-export function deleteProfile(id: string) {
+export async function deleteProfile(id: string) {
   persist(readProfiles().filter((p) => p.id !== id));
+  await cloudDelete(id);
 }
 
 export function duplicateProfile(id: string): BusinessProfile | undefined {
@@ -128,9 +162,10 @@ export function duplicateProfile(id: string): BusinessProfile | undefined {
   if (!source) return undefined;
   const copy: BusinessProfile = {
     ...source,
-    id: uid(),
+    id: crypto.randomUUID(),
     name: `${source.name || "Profile"} copy`,
     isDefault: false,
+    updatedAt: new Date().toISOString(),
   };
   saveProfile(copy);
   return copy;
@@ -142,7 +177,7 @@ export function defaultProfile(): BusinessProfile | undefined {
 }
 
 /** Everything a profile decides about an invoice, as a patch for the draft. */
-export function applyProfileToInvoice(p: BusinessProfile): Partial<import("./types").InvoiceData> {
+export function applyProfileToInvoice(p: BusinessProfile): Partial<InvoiceData> {
   const methods = Object.fromEntries(
     (Object.keys(STANDARD_FEES) as PaymentMethodId[]).map((id) => [
       id,
@@ -152,7 +187,7 @@ export function applyProfileToInvoice(p: BusinessProfile): Partial<import("./typ
         feePercent: STANDARD_FEES[id],
       },
     ]),
-  ) as import("./types").InvoiceData["methods"];
+  ) as InvoiceData["methods"];
 
   return {
     profileId: p.id,
@@ -179,4 +214,92 @@ export function applyProfileToInvoice(p: BusinessProfile): Partial<import("./typ
     accentColor: p.accentColor,
     notes: p.notes,
   };
+}
+
+/* ------------------------------ cloud mirror ------------------------------ */
+
+async function cloudUpsert(p: BusinessProfile) {
+  if (!supabase) return;
+  const userId = currentUserId();
+  if (!userId) return;
+  await supabase.from("businesses").upsert({
+    id: p.id,
+    user_id: userId,
+    data: p as unknown as Record<string, unknown>,
+    is_default: p.isDefault,
+    updated_at: p.updatedAt,
+  });
+}
+
+async function cloudDelete(id: string) {
+  if (!supabase) return;
+  const userId = currentUserId();
+  if (!userId) return;
+  await supabase.from("businesses").delete().eq("id", id).eq("user_id", userId);
+}
+
+/**
+ * Pull cloud rows and merge (newer updatedAt wins both ways), then push any
+ * local profiles the cloud is missing or that are newer locally.
+ */
+export async function syncProfiles(): Promise<void> {
+  if (!supabase) return;
+  const userId = currentUserId();
+  if (!userId) return;
+
+  const { data: rows, error } = await supabase
+    .from("businesses")
+    .select("id, data, is_default, updated_at")
+    .eq("user_id", userId);
+  if (error) return;
+
+  const remote = (rows ?? []).map((r) => ({
+    ...(r.data as BusinessProfile),
+    id: r.id as string,
+    isDefault: r.is_default as boolean,
+    updatedAt: r.updated_at as string,
+  }));
+
+  const byId = new Map<string, BusinessProfile>();
+  for (const p of readProfiles()) byId.set(p.id, p);
+
+  let changed = false;
+  const toPush: BusinessProfile[] = [];
+
+  for (const r of remote) {
+    const l = byId.get(r.id);
+    if (!l) {
+      byId.set(r.id, r); // exists only on the cloud → bring down
+      changed = true;
+    } else if ((r.updatedAt ?? "") > (l.updatedAt ?? "")) {
+      byId.set(r.id, r); // cloud is newer → cloud wins
+      changed = true;
+    }
+  }
+  for (const l of byId.values()) {
+    const r = remote.find((x) => x.id === l.id);
+    if (!r || (l.updatedAt ?? "") > (r.updatedAt ?? "")) toPush.push(l);
+  }
+
+  if (changed) persist([...byId.values()]);
+  await Promise.all(toPush.map(cloudUpsert));
+
+  // Keep the "is default" flag consistent in the cloud too.
+  const dflt = [...byId.values()].find((p) => p.isDefault);
+  if (dflt) {
+    await supabase
+      .from("businesses")
+      .update({ is_default: false })
+      .eq("user_id", userId)
+      .neq("id", dflt.id);
+  }
+
+  window.dispatchEvent(new Event("profiles-synced"));
+}
+
+// Re-sync whenever auth changes (sign-in, token refresh) in this tab.
+if (typeof window !== "undefined") {
+  window.addEventListener("auth-changed", () => {
+    if (currentUserId()) syncProfiles();
+  });
 }

@@ -97,7 +97,8 @@ export interface ProfileMethodState {
 
 /** A business profile: fill once, reuse on every invoice. */
 export interface BusinessProfile {
-  id: string;
+  id: string; // UUID: local and cloud ids are the same
+  updatedAt: string; // ISO — last-write-wins during cloud sync
   name: string;
   email: string;
   address: string;

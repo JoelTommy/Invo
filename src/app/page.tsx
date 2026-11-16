@@ -11,6 +11,8 @@ import {
   subscribeDraft,
 } from "@/lib/draft-store";
 import { nextInvoiceNumber } from "@/lib/format";
+import { getAuthSnapshot } from "@/lib/auth";
+import { recordFromInvoiceData, saveInvoice } from "@/lib/invoices-store";
 import {
   applyProfileToInvoice,
   getProfilesSnapshot,
@@ -27,6 +29,7 @@ export default function CreateInvoicePage() {
   const data = useSyncExternalStore(subscribeDraft, getDraftSnapshot, getServerDraftSnapshot);
   const [mode, setMode] = useState<"edit" | "preview">("edit"); // mobile only
   const [pdfError, setPdfError] = useState("");
+  const [saveNote, setSaveNote] = useState("");
   const paperRef = useRef<HTMLDivElement>(null);
   const profiles = useSyncExternalStore(
     subscribeProfiles,
@@ -75,10 +78,23 @@ export default function CreateInvoicePage() {
     }
   }, []);
 
-  const handleSaveInvoice = useCallback(() => {
-    // Logged-out: pressing "Save invoice" prompts the sign-in flow
-    // (Google OAuth itself connects in stage 4).
-    window.dispatchEvent(new Event("open-signin"));
+  const handleSaveInvoice = useCallback(async () => {
+    if (!getAuthSnapshot()) {
+      // Logged out: pressing "Save invoice" prompts the sign-in flow.
+      window.dispatchEvent(new Event("open-signin"));
+      return;
+    }
+    const current = getDraftSnapshot();
+    if (!current) return;
+    setPdfError("");
+    try {
+      await saveInvoice(recordFromInvoiceData(current));
+      setSaveNote("Invoice saved to history — find it in the Invoices tab.");
+      setTimeout(() => setSaveNote(""), 4000);
+    } catch (err) {
+      console.error("Saving invoice failed", err);
+      setPdfError("Could not save the invoice. Check your connection and try again.");
+    }
   }, []);
 
   if (!data) {
@@ -139,6 +155,11 @@ export default function CreateInvoicePage() {
           {pdfError && (
             <p className="no-print mb-3 border-2 border-ink bg-panel p-2 text-sm" role="alert">
               {pdfError}
+            </p>
+          )}
+          {saveNote && (
+            <p className="no-print mb-3 border-2 border-ink bg-panel p-2 text-sm" role="status">
+              {saveNote}
             </p>
           )}
           <div ref={paperRef} className="lg:sticky lg:top-6">

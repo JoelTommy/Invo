@@ -76,3 +76,16 @@ export function saveDraft(data: InvoiceData): void {
   }
   listeners.forEach((callback) => callback());
 }
+
+// When legacy profile ids are migrated to UUIDs, the draft's profileId
+// reference follows so it keeps pointing at the same profile.
+if (typeof window !== "undefined") {
+  window.addEventListener("profiles-remapped", (event) => {
+    const map = (event as CustomEvent<Record<string, string>>).detail;
+    if (!map) return;
+    const current = readDraft();
+    if (current?.profileId && map[current.profileId]) {
+      saveDraft({ ...current, profileId: map[current.profileId] });
+    }
+  });
+}

@@ -5,14 +5,22 @@ import { signInWithGoogle } from "@/lib/auth";
 
 /** Prompted when a logged-out visitor presses "Save invoice" or "Sign in". */
 export default function SignInModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [note, setNote] = useState<"" | "unconfigured" | "redirecting">("");
+  const [note, setNote] = useState<"" | "unconfigured" | "redirecting" | "error">("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   if (!open) return null;
 
   async function handleGoogle() {
-    const started = await signInWithGoogle();
-    // Supabase redirects the browser on success; false means not configured.
-    setNote(started ? "redirecting" : "unconfigured");
+    setNote("");
+    setErrorMsg("");
+    try {
+      const started = await signInWithGoogle();
+      // Supabase redirects the browser on success; false means not configured.
+      setNote(started ? "redirecting" : "unconfigured");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Something went wrong starting sign-in.");
+      setNote("error");
+    }
   }
 
   return (
@@ -47,6 +55,12 @@ export default function SignInModal({ open, onClose }: { open: boolean; onClose:
         {note === "redirecting" && (
           <p className="mt-2 border-2 border-ink p-2 text-sm" role="status">
             Taking you to Google… finish there and you&apos;ll come right back.
+          </p>
+        )}
+        {note === "error" && (
+          <p className="mt-2 border-2 border-ink bg-panel p-2 text-sm" role="alert">
+            {errorMsg} Check Supabase → Authentication → Providers → Google, and that the OAuth
+            redirect URL matches this site.
           </p>
         )}
         <button type="button" className="btn mt-3 w-full" onClick={onClose}>
