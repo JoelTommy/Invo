@@ -65,18 +65,10 @@ export default function ProfileEditor({ profile, onSave, onDuplicate, onDelete }
         <summary>Business</summary>
         <div className="b">
           <label className="label">
-            Profile name
-            <input
-              className="input"
-              placeholder="e.g. Stickies"
-              value={form.name}
-              onChange={(e) => set({ name: e.target.value })}
-            />
-          </label>
-          <label className="label">
             Business name
             <input
               className="input"
+              placeholder="e.g. Stickies"
               value={form.name}
               onChange={(e) => set({ name: e.target.value })}
             />
