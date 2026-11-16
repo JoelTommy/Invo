@@ -21,20 +21,11 @@ export default function ProfilesPage() {
     getProfilesSnapshot,
     getServerProfilesSnapshot,
   );
-  // null = list view; a BusinessProfile = editing (or creating) one.
+  // The editor works on a copy; Save writes it to the store (and cloud).
   const [editing, setEditing] = useState<BusinessProfile | null>(null);
-
-  if (editing) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-        <ProfileEditor profile={editing} onDone={() => setEditing(null)} />
-      </div>
-    );
-  }
 
   function handleNew() {
     const blank = blankProfile();
-    // Copy defaults from the default profile so setup is fast.
     const base = defaultProfile();
     if (base) {
       Object.assign(blank, { ...base, id: blank.id, name: "", isDefault: false, logoDataUrl: "", upiQrDataUrl: "" });
@@ -42,93 +33,71 @@ export default function ProfilesPage() {
     setEditing(blank);
   }
 
-  function handleDuplicate(id: string) {
-    const copy = duplicateProfile(id);
-    if (copy) setEditing(copy);
+  function handleSelect(p: BusinessProfile) {
+    setEditing({ ...p });
   }
 
-  function handleDelete(p: BusinessProfile) {
-    // Invoice history (stage 5) will warn when a profile has invoices; until
-    // then a plain confirm is enough.
-    if (window.confirm(`Delete “${p.name || "this profile"}”? This can't be undone.`)) {
-      deleteProfile(p.id);
+  async function handleSave(p: BusinessProfile) {
+    await saveProfile(p);
+    setEditing({ ...p });
+  }
+
+  function handleDuplicate(p: BusinessProfile) {
+    const copy = duplicateProfile(p.id);
+    if (copy) setEditing({ ...copy });
+  }
+
+  async function handleDelete(p: BusinessProfile) {
+    // Saved invoices keep their own copy of the profile's details.
+    if (window.confirm(`Delete “${p.name || "this business"}”? Saved invoices keep their own copy of its details.`)) {
+      await deleteProfile(p.id);
+      setEditing(null);
     }
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Profiles</h1>
-        <button type="button" className="btn btn-primary" onClick={handleNew}>
-          + New profile
-        </button>
-      </div>
-      <p className="mt-2 text-sm text-muted">
-        One profile per brand. These details appear on invoices you create — pick a profile on the
-        Create tab and everything fills itself in.
-        {!authConfigured && " They live in this browser; sign in (stage 4 setup) to sync them across devices."}
-      </p>
-
-      {profiles.length === 0 ? (
-        <div className="section-card mt-6 p-6">
-          <p className="font-bold">No business profiles yet.</p>
-          <p className="mt-2 text-sm text-muted">
-            Add one — name, UPI ID or bank details, tax defaults — and stop typing them on every
-            invoice.
+    <div className="mx-auto grid max-w-5xl gap-6 px-6 py-6 md:grid-cols-[260px_1fr]">
+      <div>
+        <h2 className="text-xl font-bold">Businesses</h2>
+        <p className="mt-1 text-sm text-muted">These details appear on invoices you create.</p>
+        {!authConfigured && (
+          <p className="mt-2 text-xs text-muted">
+            Profiles live in this browser — sign in to sync them across devices.
           </p>
-          <button type="button" className="btn btn-primary mt-4" onClick={handleNew}>
-            + New profile
+        )}
+        <div className="chips mt-3">
+          {profiles.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`btn chip ${editing?.id === p.id ? "on" : ""}`}
+              aria-pressed={editing?.id === p.id}
+              onClick={() => handleSelect(p)}
+            >
+              {p.name || "Untitled profile"}
+            </button>
+          ))}
+          <button type="button" className="btn chip" onClick={handleNew}>
+            + New business
           </button>
         </div>
-      ) : (
-        <div className="mt-6 flex flex-col gap-3">
-          {profiles.map((p) => (
-            <div key={p.id} className="section-card p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-bold">
-                    {p.name || "Untitled profile"}
-                    {p.isDefault && (
-                      <span className="ml-2 border-2 border-ink bg-accent px-1 font-mono text-[10px] uppercase text-accent-contrast">
-                        default
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {[p.email, p.upiId || null, p.bankName || null].filter(Boolean).join(" · ") ||
-                      "No contact or payment details yet"}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" className="btn btn-small" onClick={() => setEditing(p)}>
-                    Edit
-                  </button>
-                  <button type="button" className="btn btn-small" onClick={() => handleDuplicate(p.id)}>
-                    Duplicate
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-small"
-                    onClick={() => handleDelete(p)}
-                    aria-label={`Delete ${p.name || "profile"}`}
-                  >
-                    Delete
-                  </button>
-                  {!p.isDefault && (
-                    <button
-                      type="button"
-                      className="btn btn-small"
-                      onClick={() => saveProfile({ ...p, isDefault: true })}
-                    >
-                      Make default
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      </div>
+
+      <div>
+        {editing ? (
+          <ProfileEditor
+            key={editing.id}
+            profile={editing}
+            onSave={handleSave}
+            onDuplicate={() => handleDuplicate(editing)}
+            onDelete={() => handleDelete(editing)}
+          />
+        ) : (
+          <p className="text-sm text-muted">
+            Pick a business, or create a new one for a different logo and bank details.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

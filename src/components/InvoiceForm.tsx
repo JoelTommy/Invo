@@ -1,23 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import type { BusinessProfile, InvoiceData, LineItem, PaymentMethodId, TemplateId } from "@/lib/types";
-import { CURRENCIES, PAYMENT_METHODS } from "@/lib/types";
+import { CURRENCIES, PAYMENT_METHODS, STANDARD_FEES } from "@/lib/types";
 import { BankLogo, PayPalLogo, RazorpayLogo, StripeLogo, UpiLogo } from "./PaymentLogos";
 
 interface Props {
   data: InvoiceData;
   update: (patch: Partial<InvoiceData>) => void;
-  onClear: () => void;
   profiles: BusinessProfile[];
   onSelectProfile: (profile: BusinessProfile | null) => void;
 }
 
-const TEMPLATES: { id: TemplateId; label: string }[] = [
-  { id: "brutal", label: "Brutal" },
-  { id: "plain", label: "Plain" },
-  { id: "classic", label: "Classic" },
+const TEMPLATES: [TemplateId, string][] = [
+  ["brutal", "Brutal"],
+  ["plain", "Plain"],
+  ["classic", "Classic"],
 ];
 
 const METHOD_LOGOS: Record<PaymentMethodId, React.ReactNode> = {
@@ -28,297 +27,190 @@ const METHOD_LOGOS: Record<PaymentMethodId, React.ReactNode> = {
   razorpay: <RazorpayLogo />,
 };
 
-const METHOD_HINTS: Record<PaymentMethodId, string> = {
-  upi: "Your UPI ID — VPAs change often, so this one stays editable",
-  bank: "One account per brand; one-timer invoices enter it here, profiles fill it automatically",
-  paypal: "Clients pay your PayPal email directly",
-  stripe: "Clients pay through your Stripe payment link",
-  razorpay: "Clients pay through your Razorpay payment link",
-};
-
-export default function InvoiceForm({ data, update, onClear, profiles, onSelectProfile }: Props) {
-  const [customOpen, setCustomOpen] = useState(false);
+export default function InvoiceForm({ data, update, profiles, onSelectProfile }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const qrFileRef = useRef<HTMLInputElement>(null);
-
   const oneTimer = data.profileId === null;
 
   function setItem(id: string, patch: Partial<LineItem>) {
     update({ items: data.items.map((it) => (it.id === id ? { ...it, ...patch } : it)) });
   }
 
-  function readImage(file: File, apply: (dataUrl: string) => void) {
+  async function readImage(file: File | undefined, apply: (dataUrl: string) => void) {
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = () => apply(String(reader.result));
     reader.readAsDataURL(file);
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      {/* 1. Client -------------------------------------------------------- */}
-      <section className="section-card p-4 sm:p-5" aria-labelledby="s-client">
-        <h2 id="s-client" className="mb-3 text-sm font-bold uppercase tracking-wide">
-          1 · Client
-        </h2>
-        <div className="grid gap-3">
-          <div>
-            <label className="label" htmlFor="client-name">
-              Client name
-            </label>
+  /* Per-method detail box: fields for one-timers, snapshot values for
+     profiles (still editable — an invoice keeps its own copy). */
+  const detailBox = (id: PaymentMethodId, label: string) => {
+    const m = data.methods[id];
+    const field = (key: keyof InvoiceData, text: string, mono = false) => (
+      <label className="label">
+        {text}
+        <input
+          className={`input ${mono ? "font-mono" : ""}`}
+          value={String(data[key] ?? "")}
+          onChange={(e) => update({ [key]: e.target.value } as Partial<InvoiceData>)}
+        />
+      </label>
+    );
+    const hasValues =
+      (id === "upi" && data.upiId) ||
+      (id === "paypal" && data.paypalEmail) ||
+      (id === "stripe" && data.stripeLink) ||
+      (id === "razorpay" && data.razorpayLink) ||
+      (id === "bank" &&
+        (data.bankAccountName || data.bankName || data.bankAccountNumber || data.bankIfsc));
+
+    return (
+      <div className="pm" key={id}>
+        <div className="ph">{METHOD_LOGOS[id]}</div>
+        {!oneTimer && !hasValues && (
+          <p className="text-sm text-muted">
+            No {label} details saved for this business yet. Add them on the Profiles tab.
+          </p>
+        )}
+        {id === "upi" && field("upiId", "UPI ID", true)}
+        {id === "paypal" && field("paypalEmail", "PayPal email")}
+        {id === "stripe" && field("stripeLink", "Stripe payment link", true)}
+        {id === "razorpay" && field("razorpayLink", "Razorpay payment link", true)}
+        {id === "bank" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {field("bankAccountName", "Account name")}
+            {field("bankName", "Bank name")}
+            {field("bankAccountNumber", "Account number", true)}
+            {field("bankIfsc", "IFSC or SWIFT code", true)}
+          </div>
+        )}
+        <div className="fee">
+          <label className="flex items-center gap-2.5 text-sm">
             <input
-              id="client-name"
+              type="checkbox"
+              checked={m.clientPays}
+              onChange={(e) =>
+                update({
+                  methods: { ...data.methods, [id]: { ...m, clientPays: e.target.checked } },
+                })
+              }
+            />
+            Client pays the fee
+          </label>
+          <span className="font-mono text-xs text-muted">{STANDARD_FEES[id]}% standard</span>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {/* Business: chips at the very top, profiles first, One-timer beside */}
+      <div className="chips" role="group" aria-label="Invoice for">
+        {profiles.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={`btn chip ${data.profileId === p.id ? "on" : ""}`}
+            aria-pressed={data.profileId === p.id}
+            onClick={() => onSelectProfile(p)}
+          >
+            {p.name || "Untitled profile"}
+          </button>
+        ))}
+        <button
+          type="button"
+          className={`btn chip ${oneTimer ? "on" : ""}`}
+          aria-pressed={oneTimer}
+          onClick={() => onSelectProfile(null)}
+        >
+          One-timer
+        </button>
+        <Link href="/profiles" className="btn chip ghost">
+          + Add business
+        </Link>
+      </div>
+
+      <details className="sec" open>
+        <summary>Client and invoice</summary>
+        <div className="b">
+          <label className="label">
+            Client name
+            <input
               className="input"
               placeholder="Who is this for?"
               value={data.clientName}
               onChange={(e) => update({ clientName: e.target.value })}
             />
-          </div>
-          <div>
-            <label className="label" htmlFor="client-business">
-              Client&apos;s business (optional)
-            </label>
+          </label>
+          <label className="label">
+            Client business name
             <input
-              id="client-business"
               className="input"
-              placeholder="Their company"
+              placeholder="Their company (optional)"
               value={data.clientBusinessName}
               onChange={(e) => update({ clientBusinessName: e.target.value })}
             />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="label" htmlFor="client-email">
-                Email (optional)
-              </label>
-              <input
-                id="client-email"
-                type="email"
-                className="input"
-                placeholder="client@company.com"
-                value={data.clientEmail}
-                onChange={(e) => update({ clientEmail: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label" htmlFor="client-address">
-                Address (optional)
-              </label>
-              <input
-                id="client-address"
-                className="input"
-                placeholder="Street, city, PIN"
-                value={data.clientAddress}
-                onChange={(e) => update({ clientAddress: e.target.value })}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. Business ------------------------------------------------------ */}
-      <section className="section-card p-4 sm:p-5" aria-labelledby="s-business">
-        <h2 id="s-business" className="mb-1 text-sm font-bold uppercase tracking-wide">
-          2 · Business
-        </h2>
-        <p className="mb-3 text-sm text-muted">
-          Pick who is sending this invoice. A profile fills every detail in — you never re-type
-          them.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {profiles.map((p) => {
-            const selected = data.profileId === p.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                className={`border-2 border-ink p-3 text-left ${
-                  selected ? "bg-accent text-accent-contrast" : "bg-panel"
-                }`}
-                aria-pressed={selected}
-                onClick={() => onSelectProfile(p)}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-bold">{p.name || "Untitled profile"}</span>
-                  {p.isDefault && (
-                    <span className="font-mono text-[10px] uppercase">default</span>
-                  )}
-                </div>
-                <p className="mt-1 text-xs opacity-70">
-                  {p.upiId || p.bankName || p.email || "No payment details yet"}
-                </p>
-              </button>
-            );
-          })}
-
-          {/* One-timer: the guest option, next to the profiles */}
-          <button
-            type="button"
-            className={`border-2 border-ink p-3 text-left ${
-              oneTimer ? "bg-accent text-accent-contrast" : "bg-panel"
-            }`}
-            aria-pressed={oneTimer}
-            onClick={() => onSelectProfile(null)}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-bold">One-timer</span>
-              {oneTimer && <span className="font-mono text-xs">selected</span>}
-            </div>
-            <p className="mt-1 text-xs opacity-70">
-              A custom invoice without a profile. Type your details once below.
-            </p>
-          </button>
-
-          <Link
-            href="/profiles"
-            className="flex flex-col justify-center border-2 border-dashed border-muted p-3 text-muted hover:border-ink hover:text-ink"
-          >
-            <span className="text-sm font-semibold">Manage profiles →</span>
-            <span className="text-xs">Add brands like “Stickies” or “Littles”.</span>
-          </Link>
-        </div>
-
-        {!oneTimer && (
-          <p className="mt-3 text-xs text-muted">
-            Details come from{" "}
-            <strong>{profiles.find((p) => p.id === data.profileId)?.name ?? "the selected profile"}</strong>{" "}
-            — edit them in the Profiles tab. Old invoices keep the details they were made with.
-          </p>
-        )}
-
-        {oneTimer && (
-          <div className="mt-3 grid gap-3 border-2 border-ink p-3">
-            <div>
-              <label className="label" htmlFor="business-name">
-                Your business name
-              </label>
-              <input
-                id="business-name"
-                className="input"
-                placeholder="Appears at the top of the invoice"
-                value={data.businessName}
-                onChange={(e) => update({ businessName: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="label" htmlFor="business-email">
-                  Email (optional)
-                </label>
-                <input
-                  id="business-email"
-                  type="email"
-                  className="input"
-                  placeholder="you@business.com"
-                  value={data.businessEmail}
-                  onChange={(e) => update({ businessEmail: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="label" htmlFor="business-taxid">
-                  Tax ID (optional)
-                </label>
-                <input
-                  id="business-taxid"
-                  className="input"
-                  placeholder="GSTIN / VAT"
-                  value={data.businessTaxId}
-                  onChange={(e) => update({ businessTaxId: e.target.value })}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="label" htmlFor="business-address">
-                Address (optional)
-              </label>
-              <input
-                id="business-address"
-                className="input"
-                placeholder="Street, city, PIN"
-                value={data.businessAddress}
-                onChange={(e) => update({ businessAddress: e.target.value })}
-              />
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* 3. Invoice ------------------------------------------------------- */}
-      <section className="section-card p-4 sm:p-5" aria-labelledby="s-invoice">
-        <h2 id="s-invoice" className="mb-3 text-sm font-bold uppercase tracking-wide">
-          3 · Invoice
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <label className="label" htmlFor="inv-number">
-              Number
-            </label>
-            <input
-              id="inv-number"
-              className="input font-mono"
-              value={data.invoiceNumber}
-              onChange={(e) => update({ invoiceNumber: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="label" htmlFor="inv-issue">
-              Issue date
-            </label>
-            <input
-              id="inv-issue"
-              type="date"
-              className="input"
-              value={data.issueDate}
-              onChange={(e) => update({ issueDate: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="label" htmlFor="inv-due">
-              Due date
-            </label>
-            <input
-              id="inv-due"
-              type="date"
-              className="input"
-              value={data.dueDate}
-              onChange={(e) => update({ dueDate: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="mt-3 sm:w-40">
-          <label className="label" htmlFor="inv-currency">
-            Currency
           </label>
-          <select
-            id="inv-currency"
-            className="select"
-            value={data.currency}
-            onChange={(e) => update({ currency: e.target.value as InvoiceData["currency"] })}
-          >
-            {CURRENCIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mt-4">
-          <span className="label">Line items</span>
+          <div className="grid grid-cols-2 gap-2.5">
+            <label className="label">
+              Invoice number
+              <input
+                className="input font-mono"
+                value={data.invoiceNumber}
+                onChange={(e) => update({ invoiceNumber: e.target.value })}
+              />
+            </label>
+            <label className="label">
+              Currency
+              <select
+                className="select"
+                value={data.currency}
+                onChange={(e) => update({ currency: e.target.value as InvoiceData["currency"] })}
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <label className="label">
+              Issue date
+              <input
+                type="date"
+                className="input"
+                value={data.issueDate}
+                onChange={(e) => update({ issueDate: e.target.value })}
+              />
+            </label>
+            <label className="label">
+              Due date
+              <input
+                type="date"
+                className="input"
+                value={data.dueDate}
+                onChange={(e) => update({ dueDate: e.target.value })}
+              />
+            </label>
+          </div>
           <div className="flex flex-col gap-2">
             {data.items.map((item, i) => (
-              <div key={item.id} className="grid grid-cols-[1fr_5rem_6rem_auto] items-end gap-2">
-                <div>
-                  {i === 0 && <span className="label">Description</span>}
+              <div key={item.id} className="grid grid-cols-[1fr_60px_90px_auto] gap-1.5 items-end">
+                <label className="label">
+                  {i === 0 ? "Item" : "Description"}
                   <input
                     className="input"
-                    placeholder={i === 0 ? "What did you do?" : "Description"}
+                    placeholder={i === 0 ? "What did you do?" : ""}
                     value={item.description}
                     onChange={(e) => setItem(item.id, { description: e.target.value })}
                   />
-                </div>
-                <div>
-                  {i === 0 && <span className="label">Qty</span>}
+                </label>
+                <label className="label">
+                  {i === 0 ? "Qty" : ""}
                   <input
                     className="input font-mono"
                     type="number"
@@ -327,9 +219,9 @@ export default function InvoiceForm({ data, update, onClear, profiles, onSelectP
                     value={item.quantity}
                     onChange={(e) => setItem(item.id, { quantity: Number(e.target.value) })}
                   />
-                </div>
-                <div>
-                  {i === 0 && <span className="label">Rate</span>}
+                </label>
+                <label className="label">
+                  {i === 0 ? "Rate" : ""}
                   <input
                     className="input font-mono"
                     type="number"
@@ -338,12 +230,12 @@ export default function InvoiceForm({ data, update, onClear, profiles, onSelectP
                     value={item.rate}
                     onChange={(e) => setItem(item.id, { rate: Number(e.target.value) })}
                   />
-                </div>
+                </label>
                 <button
                   type="button"
                   className="btn btn-small"
-                  style={{ height: "fit-content" }}
-                  aria-label={`Remove line item ${i + 1}`}
+                  style={{ height: "fit-content", marginBottom: 2 }}
+                  aria-label={`Remove item ${i + 1}`}
                   onClick={() =>
                     update({
                       items:
@@ -353,14 +245,14 @@ export default function InvoiceForm({ data, update, onClear, profiles, onSelectP
                     })
                   }
                 >
-                  ✕
+                  Remove
                 </button>
               </div>
             ))}
           </div>
           <button
             type="button"
-            className="btn btn-small mt-2"
+            className="btn btn-small self-start"
             onClick={() =>
               update({
                 items: [
@@ -370,369 +262,222 @@ export default function InvoiceForm({ data, update, onClear, profiles, onSelectP
               })
             }
           >
-            + Add item
+            Add item
           </button>
         </div>
-      </section>
+      </details>
 
-      {/* 4. Tax ----------------------------------------------------------- */}
-      <section className="section-card p-4 sm:p-5" aria-labelledby="s-tax">
-        <h2 id="s-tax" className="mb-3 text-sm font-bold uppercase tracking-wide">
-          4 · Tax
-        </h2>
-        <label className="flex items-center gap-2 text-sm font-semibold">
-          <input
-            type="checkbox"
-            checked={data.taxEnabled}
-            onChange={(e) => update({ taxEnabled: e.target.checked })}
-          />
-          Add tax
-        </label>
-        {data.taxEnabled && (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="label" htmlFor="tax-name">
+      {/* Your details: only for a one-timer invoice — profiles fill this in */}
+      {oneTimer && (
+        <details className="sec" open>
+          <summary>Your details</summary>
+          <div className="b">
+            <label className="label">
+              Your name or business
+              <input
+                className="input"
+                placeholder="Appears at the top of the invoice"
+                value={data.businessName}
+                onChange={(e) => update({ businessName: e.target.value })}
+              />
+            </label>
+            <label className="label">
+              Email
+              <input
+                type="email"
+                className="input"
+                placeholder="you@example.com"
+                value={data.businessEmail}
+                onChange={(e) => update({ businessEmail: e.target.value })}
+              />
+            </label>
+            <label className="label">
+              Address
+              <input
+                className="input"
+                placeholder="Street, city, PIN"
+                value={data.businessAddress}
+                onChange={(e) => update({ businessAddress: e.target.value })}
+              />
+            </label>
+          </div>
+        </details>
+      )}
+
+      <details className="sec">
+        <summary>Tax</summary>
+        <div className="b">
+          <label className="flex items-center gap-2.5 text-base">
+            <input
+              type="checkbox"
+              checked={data.taxEnabled}
+              onChange={(e) => update({ taxEnabled: e.target.checked })}
+            />
+            Add tax to this invoice
+          </label>
+          {data.taxEnabled && (
+            <div className="grid grid-cols-2 gap-2.5">
+              <label className="label">
                 Tax name
-              </label>
-              <input
-                id="tax-name"
-                className="input"
-                placeholder="GST"
-                value={data.taxName}
-                onChange={(e) => update({ taxName: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label" htmlFor="tax-rate">
-                Rate %
-              </label>
-              <input
-                id="tax-rate"
-                className="input font-mono"
-                type="number"
-                min={0}
-                max={100}
-                step="any"
-                value={data.taxRate}
-                onChange={(e) => update({ taxRate: Number(e.target.value) })}
-              />
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* 5. Payment options ---------------------------------------------- */}
-      <section className="section-card p-4 sm:p-5" aria-labelledby="s-payment">
-        <h2 id="s-payment" className="mb-1 text-sm font-bold uppercase tracking-wide">
-          5 · Payment options
-        </h2>
-        <p className="mb-3 text-sm text-muted">
-          Tick how this client can pay. The details behind each option come from your business
-          profile — you never type them here.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {PAYMENT_METHODS.map(({ id, label }) => {
-            const m = data.methods[id];
-            const chip = m.enabled
-              ? "border-ink bg-accent text-accent-contrast"
-              : "border-ink bg-panel";
-            return (
-              <div key={id} className="border-2 border-ink bg-panel">
-                <label className={`flex cursor-pointer items-center gap-3 p-3 ${chip}`}>
-                  <input
-                    type="checkbox"
-                    checked={m.enabled}
-                    onChange={(e) =>
-                      update({
-                        methods: { ...data.methods, [id]: { ...m, enabled: e.target.checked } },
-                      })
-                    }
-                  />
-                  <span className="flex items-center">{METHOD_LOGOS[id]}</span>
-                  <span className="text-sm font-semibold">
-                    {id === "bank" ? "Bank transfer" : id === "upi" ? "UPI" : label}
-                  </span>
-                </label>
-
-                {m.enabled && (
-                  <div className="border-t-2 border-ink p-3">
-                    <p className="text-xs text-muted">{METHOD_HINTS[id]}</p>
-                    <label className="mt-2 flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={m.clientPays}
-                        onChange={(e) =>
-                          update({
-                            methods: {
-                              ...data.methods,
-                              [id]: { ...m, clientPays: e.target.checked },
-                            },
-                          })
-                        }
-                      />
-                      Client pays the fee
-                    </label>
-                    {m.clientPays && (
-                      <p className="mt-2 font-mono text-xs">
-                        Standard fee: {m.feePercent}% — fixed per app, adjusts by region later
-                      </p>
-                    )}
-                    {oneTimer && id === "upi" && (
-                      <div className="mt-2">
-                        <label className="label" htmlFor="upi-override">
-                          UPI ID
-                        </label>
-                        <input
-                          id="upi-override"
-                          className="input font-mono"
-                          placeholder="name@bank — VPAs change often"
-                          value={data.upiId}
-                          onChange={(e) => update({ upiId: e.target.value })}
-                        />
-                      </div>
-                    )}
-                    {oneTimer && id === "paypal" && (
-                      <div className="mt-2">
-                        <label className="label" htmlFor="paypal-email">
-                          PayPal email
-                        </label>
-                        <input
-                          id="paypal-email"
-                          type="email"
-                          className="input"
-                          placeholder="you@business.com"
-                          value={data.paypalEmail}
-                          onChange={(e) => update({ paypalEmail: e.target.value })}
-                        />
-                      </div>
-                    )}
-                    {oneTimer && id === "stripe" && (
-                      <div className="mt-2">
-                        <label className="label" htmlFor="stripe-link">
-                          Stripe payment link
-                        </label>
-                        <input
-                          id="stripe-link"
-                          className="input font-mono"
-                          placeholder="buy.stripe.com/…"
-                          value={data.stripeLink}
-                          onChange={(e) => update({ stripeLink: e.target.value })}
-                        />
-                      </div>
-                    )}
-                    {oneTimer && id === "razorpay" && (
-                      <div className="mt-2">
-                        <label className="label" htmlFor="razorpay-link">
-                          Razorpay payment link
-                        </label>
-                        <input
-                          id="razorpay-link"
-                          className="input font-mono"
-                          placeholder="rzp.io/…"
-                          value={data.razorpayLink}
-                          onChange={(e) => update({ razorpayLink: e.target.value })}
-                        />
-                      </div>
-                    )}
-                    {oneTimer && id === "bank" && (
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                        <div>
-                          <label className="label" htmlFor="ov-acname">
-                            Account name
-                          </label>
-                          <input
-                            id="ov-acname"
-                            className="input"
-                            value={data.bankAccountName}
-                            onChange={(e) => update({ bankAccountName: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <label className="label" htmlFor="ov-bank">
-                            Bank
-                          </label>
-                          <input
-                            id="ov-bank"
-                            className="input"
-                            value={data.bankName}
-                            onChange={(e) => update({ bankName: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <label className="label" htmlFor="ov-acno">
-                            Account number
-                          </label>
-                          <input
-                            id="ov-acno"
-                            className="input font-mono"
-                            value={data.bankAccountNumber}
-                            onChange={(e) => update({ bankAccountNumber: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <label className="label" htmlFor="ov-ifsc">
-                            IFSC / SWIFT
-                          </label>
-                          <input
-                            id="ov-ifsc"
-                            className="input font-mono"
-                            value={data.bankIfsc}
-                            onChange={(e) => update({ bankIfsc: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <p className="mt-3 text-xs text-muted">
-          Signed-in brands pull these details from their profile automatically — the boxes above
-          only appear for one-timer invoices.
-        </p>
-      </section>
-
-      {/* 6. Custom options (collapsed by default) ------------------------- */}
-      <section className="section-card p-4 sm:p-5" aria-labelledby="s-custom">
-        <div className="flex items-center justify-between gap-2">
-          <h2 id="s-custom" className="text-sm font-bold uppercase tracking-wide">
-            6 · Custom options
-          </h2>
-          <button
-            type="button"
-            className="btn btn-small"
-            aria-expanded={customOpen}
-            onClick={() => setCustomOpen((open) => !open)}
-          >
-            {customOpen ? "Close" : "Open"}
-          </button>
-        </div>
-        <p className="mt-2 text-sm text-muted">
-          Logos, QRs, one-off bank details and template choices. Most invoices don’t need these.
-        </p>
-
-        {customOpen && (
-          <div className="mt-4 flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <span className="label">Logo (this invoice only)</span>
                 <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                  className="text-sm"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) readImage(f, (url) => update({ logoDataUrl: url }));
-                  }}
+                  className="input"
+                  placeholder="GST"
+                  value={data.taxName}
+                  onChange={(e) => update({ taxName: e.target.value })}
                 />
-                {data.logoDataUrl && (
-                  <button
-                    type="button"
-                    className="btn btn-small mt-2"
-                    onClick={() => {
-                      update({ logoDataUrl: "" });
-                      if (fileRef.current) fileRef.current.value = "";
-                    }}
-                  >
-                    Remove logo
-                  </button>
-                )}
-              </div>
-              <div>
-                <span className="label">QR image (this invoice only)</span>
-                <input
-                  ref={qrFileRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                  className="text-sm"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) readImage(f, (url) => update({ qrDataUrl: url }));
-                  }}
-                />
-                <p className="mt-1 text-xs text-muted">
-                  Leave empty to auto-generate a UPI QR (INR invoices with a UPI ID).
-                </p>
-                {data.qrDataUrl && (
-                  <button
-                    type="button"
-                    className="btn btn-small mt-2"
-                    onClick={() => {
-                      update({ qrDataUrl: "" });
-                      if (qrFileRef.current) qrFileRef.current.value = "";
-                    }}
-                  >
-                    Remove QR
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <span className="label">Template</span>
-                <div className="flex gap-2">
-                  {TEMPLATES.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      className={`btn btn-small ${data.template === t.id ? "btn-primary" : ""}`}
-                      aria-pressed={data.template === t.id}
-                      onClick={() => update({ template: t.id })}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="label" htmlFor="accent-color">
-                  Accent color
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="accent-color"
-                    type="color"
-                    className="h-9 w-14 border-2 border-ink bg-panel"
-                    value={data.accentColor || "#3347ff"}
-                    onChange={(e) => update({ accentColor: e.target.value })}
-                  />
-                  {data.accentColor && (
-                    <button
-                      type="button"
-                      className="btn btn-small"
-                      onClick={() => update({ accentColor: "" })}
-                    >
-                      Use theme accent
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="label" htmlFor="notes">
-                Notes
               </label>
-              <textarea
-                id="notes"
-                className="input"
-                rows={3}
-                placeholder="Thanks for your business. Payment due within 14 days."
-                value={data.notes}
-                onChange={(e) => update({ notes: e.target.value })}
-              />
+              <label className="label">
+                Rate (%)
+                <input
+                  className="input font-mono"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="any"
+                  value={data.taxRate}
+                  onChange={(e) => update({ taxRate: Number(e.target.value) })}
+                />
+              </label>
             </div>
-          </div>
-        )}
-      </section>
+          )}
+        </div>
+      </details>
 
-      <button type="button" className="btn self-start" onClick={onClear}>
-        Clear form
-      </button>
+      <details className="sec" open>
+        <summary>Payment options</summary>
+        <div className="b">
+          <div className="tiles">
+            {PAYMENT_METHODS.map(({ id, label }) => (
+              <label className="tile" key={id} title={label}>
+                <input
+                  type="checkbox"
+                  checked={data.methods[id].enabled}
+                  onChange={(e) =>
+                    update({
+                      methods: { ...data.methods, [id]: { ...data.methods[id], enabled: e.target.checked } },
+                    })
+                  }
+                  aria-label={label}
+                />
+                {METHOD_LOGOS[id]}
+                <span className="tk">✓</span>
+              </label>
+            ))}
+          </div>
+          <div className="grid gap-3">
+            {PAYMENT_METHODS.filter(({ id }) => data.methods[id].enabled).map(({ id, label }) =>
+              detailBox(id, label),
+            )}
+          </div>
+        </div>
+      </details>
+
+      <details className="sec">
+        <summary>Custom options</summary>
+        <div className="b">
+          <label className="label">
+            Client email
+            <input
+              type="email"
+              className="input"
+              placeholder="client@company.com"
+              value={data.clientEmail}
+              onChange={(e) => update({ clientEmail: e.target.value })}
+            />
+          </label>
+          <label className="label">
+            Client address
+            <input
+              className="input"
+              placeholder="Street, city, PIN"
+              value={data.clientAddress}
+              onChange={(e) => update({ clientAddress: e.target.value })}
+            />
+          </label>
+
+          <label className="label">
+            Logo for this invoice
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              className="text-sm"
+              onChange={(e) => readImage(e.target.files?.[0], (url) => update({ logoDataUrl: url }))}
+            />
+          </label>
+          {data.logoDataUrl && (
+            <button
+              type="button"
+              className="btn btn-small self-start"
+              onClick={() => {
+                update({ logoDataUrl: "" });
+                if (fileRef.current) fileRef.current.value = "";
+              }}
+            >
+              Remove logo
+            </button>
+          )}
+
+          <label className="label">
+            QR image (optional — a UPI QR is generated from the UPI ID on INR invoices)
+            <input
+              ref={qrFileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              className="text-sm"
+              onChange={(e) => readImage(e.target.files?.[0], (url) => update({ qrDataUrl: url }))}
+            />
+          </label>
+          {data.qrDataUrl && (
+            <button
+              type="button"
+              className="btn btn-small self-start"
+              onClick={() => {
+                update({ qrDataUrl: "" });
+                if (qrFileRef.current) qrFileRef.current.value = "";
+              }}
+            >
+              Remove QR
+            </button>
+          )}
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <label className="label">
+              Template
+              <select
+                className="select"
+                value={data.template}
+                onChange={(e) => update({ template: e.target.value as TemplateId })}
+              >
+                {TEMPLATES.map(([id, label]) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="label">
+              Accent colour
+              <input
+                type="color"
+                className="w-full border-2 border-ink bg-panel"
+                value={data.accentColor || "#3347ff"}
+                onChange={(e) => update({ accentColor: e.target.value })}
+              />
+            </label>
+          </div>
+          <label className="label">
+            Notes
+            <textarea
+              className="input"
+              rows={3}
+              placeholder="Thank you for your business. Payment is due by the date above."
+              value={data.notes}
+              onChange={(e) => update({ notes: e.target.value })}
+            />
+          </label>
+        </div>
+      </details>
     </div>
   );
 }

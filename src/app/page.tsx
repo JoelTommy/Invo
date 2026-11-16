@@ -129,41 +129,47 @@ export default function CreateInvoicePage() {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,46%)]">
         {/* Left column: the form */}
-        <div className={mode === "edit" ? "block" : "hidden lg:block"}>
+        <div className={`no-print ${mode === "edit" ? "block" : "hidden lg:block"}`}>
           <InvoiceForm
             data={data}
             update={update}
-            onClear={clearForm}
             profiles={profiles}
             onSelectProfile={applyProfile}
           />
         </div>
 
-        {/* Right column: sticky live preview */}
+        {/* Right column: sticky live preview inside its stage panel */}
         <div className={mode === "preview" ? "block" : "hidden lg:block"}>
-          <div className="no-print mb-3 flex flex-wrap items-center gap-2">
-            <button type="button" className="btn btn-primary" onClick={handleDownloadPdf}>
-              Download PDF
-            </button>
-            <button type="button" className="btn" onClick={() => window.print()}>
-              Print
-            </button>
-            <button type="button" className="btn" onClick={handleSaveInvoice} title="Sign in to save invoices (coming soon)">
-              Save invoice
-            </button>
-          </div>
-          {pdfError && (
-            <p className="no-print mb-3 border-2 border-ink bg-panel p-2 text-sm" role="alert">
-              {pdfError}
-            </p>
-          )}
-          {saveNote && (
-            <p className="no-print mb-3 border-2 border-ink bg-panel p-2 text-sm" role="status">
-              {saveNote}
-            </p>
-          )}
-          <div ref={paperRef} className="lg:sticky lg:top-6">
-            <InvoicePreview data={data} />
+          <div className="pv lg:sticky lg:top-4">
+            <div className="stage">
+              <div className="no-print mb-3.5 flex flex-wrap gap-2.5">
+                <button type="button" className="btn btn-primary" onClick={handleDownloadPdf}>
+                  Download PDF
+                </button>
+                <button type="button" className="btn" onClick={handleSaveInvoice}>
+                  Save invoice
+                </button>
+                <button type="button" className="btn" onClick={() => window.print()}>
+                  Print
+                </button>
+                <button type="button" className="btn" onClick={clearForm}>
+                  New invoice
+                </button>
+              </div>
+              {pdfError && (
+                <p className="no-print mb-3 border-2 border-ink bg-panel p-2 text-sm" role="alert">
+                  {pdfError}
+                </p>
+              )}
+              {saveNote && (
+                <p className="no-print mb-3 border-2 border-ink bg-panel p-2 text-sm" role="status">
+                  {saveNote}
+                </p>
+              )}
+              <div ref={paperRef}>
+                <InvoicePreview data={data} />
+              </div>
+            </div>
           </div>
         </div>
       </div>

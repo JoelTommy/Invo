@@ -45,11 +45,10 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="btn btn-small"
+      className="btn"
       aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
     >
-      {theme === "dark" ? "☀︎ Light" : "☾ Dark"}
+      {theme === "dark" ? "Light mode" : "Dark mode"}
     </button>
   );
 }

@@ -1,21 +1,20 @@
 /**
- * Simplified, self-contained payment-brand marks (inline SVG, no network).
- * Deliberately schematic — swap for official brand assets later if needed.
+ * Payment-brand marks (inline SVG, paths from the approved design ref).
  */
 
 export function UpiLogo() {
   return (
-    <svg viewBox="0 0 48 20" className="h-5 w-auto" role="img" aria-label="UPI">
-      <path d="M6 17 L12 3 h2.6 L8.6 17 Z" fill="#F7941E" />
-      <path d="M11 17 L17 3 h2.6 L13.6 17 Z" fill="#5A6072" />
-      <path d="M16 17 L22 3 h2.6 L18.6 17 Z" fill="#43B02A" />
+    <svg viewBox="0 0 56 24" role="img" aria-label="UPI">
+      <path fill="#F58220" d="M44 3h5l-6 18h-5z" />
+      <path fill="#097939" d="M50 3h5l-6 18h-5z" />
       <text
-        x="26"
-        y="15.5"
-        fontFamily="inherit"
-        fontSize="14"
-        fontWeight="800"
-        fill="currentColor"
+        x="0"
+        y="19"
+        fontFamily="Arial, sans-serif"
+        fontWeight="900"
+        fontStyle="italic"
+        fontSize="18"
+        fill="#3D3D3D"
       >
         UPI
       </text>
@@ -25,33 +24,21 @@ export function UpiLogo() {
 
 export function BankLogo() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5"
-      role="img"
-      aria-label="Bank transfer"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="square"
-    >
-      <path d="M3 9 L12 3 L21 9 Z" />
-      <path d="M5 10 v7 M10 10 v7 M14 10 v7 M19 10 v7" />
-      <path d="M3 20 h18" />
+    <svg viewBox="0 0 24 24" role="img" aria-label="Bank transfer">
+      <path
+        fill="#1F2937"
+        d="M12 2 2 7v2h20V7L12 2zM4 11v7h3v-7H4zm6.5 0v7h3v-7h-3zM17 11v7h3v-7h-3zM2 20v2h20v-2H2z"
+      />
     </svg>
   );
 }
 
 export function PayPalLogo() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-auto" role="img" aria-label="PayPal">
+    <svg viewBox="0 0 24 24" role="img" aria-label="PayPal">
       <path
-        d="M9.5 21l.7-4.2H7.4L9.2 4.8h6c2.9 0 4.7 1.6 4.2 4.4-.5 2.9-2.5 4.5-5.5 4.5h-1.8l-.7 4z"
-        fill="#009CDE"
-      />
-      <path
-        d="M7.3 19.2l.7-4.2H5.2L7 3h6c2.9 0 4.7 1.6 4.2 4.4-.5 2.9-2.5 4.5-5.5 4.5H9.9l-.7 4z"
         fill="#003087"
+        d="M7.016 19.198h-4.2a.562.562 0 0 1-.555-.65L5.093.584A.692.692 0 0 1 5.776 0h7.222c3.417 0 5.904 2.488 5.846 5.5-.006.25-.027.5-.066.747A6.794 6.794 0 0 1 12.071 12H8.743a.69.69 0 0 0-.682.583l-.325 2.056-.013.083-.692 4.39-.015.087zM19.79 6.142c-.01.087-.01.175-.023.261a7.76 7.76 0 0 1-7.695 6.598H9.007l-.283 1.795-.013.083-.692 4.39-.134.843-.014.088H6.86l-.497 3.15a.562.562 0 0 0 .555.65h3.612c.34 0 .63-.249.683-.585l.952-6.031a.692.692 0 0 1 .683-.584h2.126a6.793 6.793 0 0 0 6.707-5.752c.306-1.95-.466-3.744-1.89-4.906z"
       />
     </svg>
   );
@@ -59,11 +46,10 @@ export function PayPalLogo() {
 
 export function StripeLogo() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" role="img" aria-label="Stripe">
-      <rect x="2" y="2" width="20" height="20" fill="#635BFF" />
+    <svg viewBox="0 0 24 24" role="img" aria-label="Stripe">
       <path
-        d="M11.6 9.4c0-.7.6-1 1.4-1 1.2 0 2.8.4 4 1.1V6.1a10 10 0 0 0-4-.8c-3.2 0-5.4 1.7-5.4 4.5 0 4.4 6 3.7 6 5.6 0 .8-.7 1.1-1.6 1.1-1.3 0-3-.6-4.4-1.4v3.4c1.5.6 3 .9 4.4.9 3.3 0 5.6-1.6 5.6-4.5 0-4.7-6.1-3.9-6.1-5.5z"
-        fill="#fff"
+        fill="#635BFF"
+        d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.594-7.305h.003z"
       />
     </svg>
   );
@@ -71,10 +57,11 @@ export function StripeLogo() {
 
 export function RazorpayLogo() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" role="img" aria-label="Razorpay">
-      <rect x="2" y="2" width="20" height="20" fill="#072F49" />
-      <path d="M9 19 L13.2 5 h3.4 L14.4 10.4 h3 L9.8 19 Z" fill="#3395FF" />
-      <path d="M10.2 19 L14.4 5 h1.6 L12.9 12 h2.6 L11.4 19 Z" fill="#fff" opacity="0.9" />
+    <svg viewBox="0 0 24 24" role="img" aria-label="Razorpay">
+      <path
+        fill="#0C2451"
+        d="M22.436 0l-11.91 7.773-1.174 4.276 6.625-4.297L11.65 24h4.391l6.395-24zM14.26 10.098L3.389 17.166 1.564 24h9.008l3.688-13.902Z"
+      />
     </svg>
   );
 }

@@ -32,49 +32,47 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="no-print border-b-2 border-ink bg-panel">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
-        <Link href="/" className="text-lg font-bold tracking-tight">
-          Invo<span className="text-accent">.</span>
-        </Link>
+    <header className="no-print flex flex-wrap items-center justify-between gap-3 border-b-2 border-ink px-6 py-5">
+      <div>
+        <h1 className="text-2xl font-bold leading-none tracking-tight">Invoice maker</h1>
+        <p className="mt-1 text-sm text-muted">Fill in the form. Your invoice updates as you type.</p>
+      </div>
 
-        <nav className="flex gap-1" aria-label="Main">
-          {TABS.map((tab) => {
-            const active = tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                aria-current={active ? "page" : undefined}
-                className={`border-2 px-3 py-1 text-sm font-semibold ${
-                  active
-                    ? "border-ink bg-accent text-accent-contrast"
-                    : "border-transparent hover:border-ink"
-                }`}
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
-        </nav>
+      <nav className="flex flex-wrap gap-2.5" aria-label="Main">
+        {TABS.map((tab) => {
+          const active = tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              aria-current={active ? "page" : undefined}
+              className={`btn ${active ? "btn-primary" : ""}`}
+            >
+              {tab.label}
+            </Link>
+          );
+        })}
+      </nav>
 
-        <div className="ml-auto flex items-center gap-2">
-          {email ? (
-            <>
-              <span className="border-2 border-ink bg-panel px-2 py-1 font-mono text-xs" title={`Signed in as ${email}`}>
-                {email}
-              </span>
-              <button type="button" className="btn btn-small" onClick={() => signOut()}>
-                Sign out
-              </button>
-            </>
-          ) : (
-            <button type="button" className="btn btn-small" onClick={() => setSignInOpen(true)}>
-              Sign in
+      <div className="flex flex-wrap items-center gap-2.5">
+        {email ? (
+          <>
+            <span
+              className="border-2 border-ink bg-panel px-2.5 py-1.5 font-mono text-xs"
+              title={`Signed in as ${email}`}
+            >
+              {email}
+            </span>
+            <button type="button" className="btn" onClick={() => signOut()}>
+              Sign out
             </button>
-          )}
-          <ThemeToggle />
-        </div>
+          </>
+        ) : (
+          <button type="button" className="btn btn-primary" onClick={() => setSignInOpen(true)}>
+            Sign in
+          </button>
+        )}
+        <ThemeToggle />
       </div>
 
       <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} />

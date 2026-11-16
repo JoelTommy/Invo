@@ -31,8 +31,8 @@ export default function SignInModal({ open, onClose }: { open: boolean; onClose:
       aria-label="Sign in"
       onClick={onClose}
     >
-      <div className="section-card w-full max-w-md bg-panel p-6" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold">Save your invoices</h2>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-xl font-bold">Save your invoices</h2>
         <p className="mt-2 text-sm text-muted">
           Sign in with Google to keep an invoice history and reuse business profiles — one per
           brand, so you never type the same details twice. One-timer invoices never need an
