@@ -1,5 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
-import { supabase } from "./supabase";
+import { supabase, supabaseUrl } from "./supabase";
 
 /**
  * Auth session as an external store for useSyncExternalStore — the same
@@ -59,7 +59,7 @@ export async function signInWithGoogle(): Promise<boolean> {
 
   // Pre-flight: the provider check happens server-side before the redirect,
   // and a bare browser navigation would otherwise land on a raw JSON body.
-  const authUrl = new URL("/auth/v1/authorize", supabase.supabaseUrl);
+  const authUrl = new URL("/auth/v1/authorize", supabaseUrl);
   authUrl.searchParams.set("provider", "google");
   const preflight = await fetch(authUrl.toString(), { redirect: "manual" });
   if (preflight.status >= 400) {
