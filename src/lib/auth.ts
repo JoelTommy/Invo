@@ -50,11 +50,22 @@ export function currentUserId(): string | null {
 
 /**
  * Sends the browser to Google and back to the site root (never a stray
- * Supabase or localhost URL). Throws with a readable message when the
- * provider isn't set up. Returns false when Supabase isn't configured.
+ * Supabase or localhost URL). Pre-flights the authorize endpoint so a
+ * disabled provider surfaces as a readable message instead of a raw JSON
+ * page. Returns false when Supabase isn't configured at all.
  */
 export async function signInWithGoogle(): Promise<boolean> {
   if (!supabase) return false;
+
+  // Pre-flight: the provider check happens server-side before the redirect,
+  // and a bare browser navigation would otherwise land on a raw JSON body.
+  const authUrl = new URL("/auth/v1/authorize", supabase.supabaseUrl);
+  authUrl.searchParams.set("provider", "google");
+  const preflight = await fetch(authUrl.toString(), { redirect: "manual" });
+  if (preflight.status >= 400) {
+    throw new Error("Google sign-in isn't enabled on the Supabase project yet.");
+  }
+
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo: window.location.origin },
