@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRef } from "react";
 import type { BusinessProfile, InvoiceData, LineItem, PaymentMethodId, TemplateId } from "@/lib/types";
@@ -300,6 +301,71 @@ export default function InvoiceForm({ data, update, profiles, onSelectProfile }:
                 onChange={(e) => update({ businessAddress: e.target.value })}
               />
             </label>
+            <label className="label">
+              Business logo (optional)
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="text-sm"
+                onChange={(e) => readImage(e.target.files?.[0], (url) => update({ logoDataUrl: url }))}
+              />
+            </label>
+            {data.logoDataUrl && (
+              <div className="flex items-center gap-3">
+                <Image
+                  src={data.logoDataUrl}
+                  alt="Business logo preview"
+                  width={120}
+                  height={48}
+                  unoptimized
+                  className="h-auto max-h-12 w-auto border-2 border-ink bg-white p-1"
+                />
+                <button
+                  type="button"
+                  className="btn btn-small self-start"
+                  onClick={() => {
+                    update({ logoDataUrl: "" });
+                    if (fileRef.current) fileRef.current.value = "";
+                  }}
+                >
+                  Remove logo
+                </button>
+              </div>
+            )}
+            <label className="label">
+              Your UPI QR image (optional — a UPI QR is generated from the UPI ID on INR invoices
+              when you leave this empty)
+              <input
+                ref={qrFileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="text-sm"
+                onChange={(e) => readImage(e.target.files?.[0], (url) => update({ qrDataUrl: url }))}
+              />
+            </label>
+            {data.qrDataUrl && (
+              <div className="flex items-center gap-3">
+                <Image
+                  src={data.qrDataUrl}
+                  alt="UPI QR preview"
+                  width={64}
+                  height={64}
+                  unoptimized
+                  className="border-2 border-ink bg-white p-1"
+                />
+                <button
+                  type="button"
+                  className="btn btn-small self-start"
+                  onClick={() => {
+                    update({ qrDataUrl: "" });
+                    if (qrFileRef.current) qrFileRef.current.value = "";
+                  }}
+                >
+                  Remove QR
+                </button>
+              </div>
+            )}
           </div>
         </details>
       )}
@@ -394,52 +460,6 @@ export default function InvoiceForm({ data, update, profiles, onSelectProfile }:
               onChange={(e) => update({ clientAddress: e.target.value })}
             />
           </label>
-
-          <label className="label">
-            Logo for this invoice
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              className="text-sm"
-              onChange={(e) => readImage(e.target.files?.[0], (url) => update({ logoDataUrl: url }))}
-            />
-          </label>
-          {data.logoDataUrl && (
-            <button
-              type="button"
-              className="btn btn-small self-start"
-              onClick={() => {
-                update({ logoDataUrl: "" });
-                if (fileRef.current) fileRef.current.value = "";
-              }}
-            >
-              Remove logo
-            </button>
-          )}
-
-          <label className="label">
-            QR image (optional — a UPI QR is generated from the UPI ID on INR invoices)
-            <input
-              ref={qrFileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              className="text-sm"
-              onChange={(e) => readImage(e.target.files?.[0], (url) => update({ qrDataUrl: url }))}
-            />
-          </label>
-          {data.qrDataUrl && (
-            <button
-              type="button"
-              className="btn btn-small self-start"
-              onClick={() => {
-                update({ qrDataUrl: "" });
-                if (qrFileRef.current) qrFileRef.current.value = "";
-              }}
-            >
-              Remove QR
-            </button>
-          )}
 
           <div className="grid grid-cols-2 gap-2.5">
             <label className="label">

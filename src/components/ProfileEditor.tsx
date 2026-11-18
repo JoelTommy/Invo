@@ -99,8 +99,25 @@ export default function ProfileEditor({ profile, onSave, onDuplicate, onDelete }
               onChange={(e) => set({ taxId: e.target.value })}
             />
           </label>
+          <label className="flex items-center gap-2.5 text-base">
+            <input
+              type="checkbox"
+              checked={form.isDefault}
+              onChange={(e) => set({ isDefault: e.target.checked })}
+            />
+            Use by default for new invoices
+          </label>
+        </div>
+      </details>
+
+      <details className="sec" open>
+        <summary>Logo and QR</summary>
+        <div className="b">
+          <p className="text-sm text-muted">
+            Upload once — used on every invoice made with this profile.
+          </p>
           <label className="label">
-            Logo
+            Business logo
             <input
               ref={logoRef}
               type="file"
@@ -134,14 +151,41 @@ export default function ProfileEditor({ profile, onSave, onDuplicate, onDelete }
               </button>
             </div>
           )}
-          <label className="flex items-center gap-2.5 text-base">
+          <label className="label">
+            Custom UPI QR image (optional — used on invoices instead of the auto-generated QR)
             <input
-              type="checkbox"
-              checked={form.isDefault}
-              onChange={(e) => set({ isDefault: e.target.checked })}
+              ref={qrRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              className="text-sm"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (f) set({ upiQrDataUrl: await readAsDataURL(f) });
+              }}
             />
-            Use by default for new invoices
           </label>
+          {form.upiQrDataUrl && (
+            <div className="flex items-center gap-3">
+              <Image
+                src={form.upiQrDataUrl}
+                alt="UPI QR preview"
+                width={64}
+                height={64}
+                unoptimized
+                className="border-2 border-ink bg-white p-1"
+              />
+              <button
+                type="button"
+                className="btn btn-small self-start"
+                onClick={() => {
+                  set({ upiQrDataUrl: "" });
+                  if (qrRef.current) qrRef.current.value = "";
+                }}
+              >
+                Remove QR
+              </button>
+            </div>
+          )}
         </div>
       </details>
 
@@ -232,41 +276,6 @@ export default function ProfileEditor({ profile, onSave, onDuplicate, onDelete }
                     onChange={(e) => set({ razorpayLink: e.target.value })}
                   />
                 </label>
-              )}
-              <label className="label">
-                QR image (optional — a UPI QR is generated from the UPI ID on INR invoices)
-                <input
-                  ref={id === "upi" ? qrRef : undefined}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                  className="text-sm"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (f) set({ upiQrDataUrl: await readAsDataURL(f) });
-                  }}
-                />
-              </label>
-              {id === "upi" && form.upiQrDataUrl && (
-                <div className="flex items-center gap-3">
-                  <Image
-                    src={form.upiQrDataUrl}
-                    alt="UPI QR preview"
-                    width={64}
-                    height={64}
-                    unoptimized
-                    className="border-2 border-ink bg-white p-1"
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-small self-start"
-                    onClick={() => {
-                      set({ upiQrDataUrl: "" });
-                      if (qrRef.current) qrRef.current.value = "";
-                    }}
-                  >
-                    Remove QR
-                  </button>
-                </div>
               )}
               <label className="flex items-center gap-2.5 text-sm">
                 <input
