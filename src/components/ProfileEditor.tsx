@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRef, useState } from "react";
 import type { BusinessProfile, Currency, PaymentMethodId, TemplateId } from "@/lib/types";
 import { CURRENCIES, PAYMENT_METHODS, STANDARD_FEES } from "@/lib/types";
@@ -112,16 +113,26 @@ export default function ProfileEditor({ profile, onSave, onDuplicate, onDelete }
             />
           </label>
           {form.logoDataUrl && (
-            <button
-              type="button"
-              className="btn btn-small self-start"
-              onClick={() => {
-                set({ logoDataUrl: "" });
-                if (logoRef.current) logoRef.current.value = "";
-              }}
-            >
-              Remove logo
-            </button>
+            <div className="flex items-center gap-3">
+              <Image
+                src={form.logoDataUrl}
+                alt="Business logo preview"
+                width={120}
+                height={48}
+                unoptimized
+                className="h-auto max-h-12 w-auto border-2 border-ink bg-white p-1"
+              />
+              <button
+                type="button"
+                className="btn btn-small self-start"
+                onClick={() => {
+                  set({ logoDataUrl: "" });
+                  if (logoRef.current) logoRef.current.value = "";
+                }}
+              >
+                Remove logo
+              </button>
+            </div>
           )}
           <label className="flex items-center gap-2.5 text-base">
             <input
@@ -236,16 +247,26 @@ export default function ProfileEditor({ profile, onSave, onDuplicate, onDelete }
                 />
               </label>
               {id === "upi" && form.upiQrDataUrl && (
-                <button
-                  type="button"
-                  className="btn btn-small self-start"
-                  onClick={() => {
-                    set({ upiQrDataUrl: "" });
-                    if (qrRef.current) qrRef.current.value = "";
-                  }}
-                >
-                  Remove QR
-                </button>
+                <div className="flex items-center gap-3">
+                  <Image
+                    src={form.upiQrDataUrl}
+                    alt="UPI QR preview"
+                    width={64}
+                    height={64}
+                    unoptimized
+                    className="border-2 border-ink bg-white p-1"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-small self-start"
+                    onClick={() => {
+                      set({ upiQrDataUrl: "" });
+                      if (qrRef.current) qrRef.current.value = "";
+                    }}
+                  >
+                    Remove QR
+                  </button>
+                </div>
               )}
               <label className="flex items-center gap-2.5 text-sm">
                 <input

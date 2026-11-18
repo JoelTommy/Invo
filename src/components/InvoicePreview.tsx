@@ -126,7 +126,7 @@ function Paper({ data, qrDataUrl }: { data: InvoiceData; qrDataUrl: string }) {
     <article
       id="invoice-paper"
       className={`paper paper-${data.template}`}
-      style={{ ["--paper-ac" as string]: accent, minHeight: 794 }} // 794px = 210mm A5
+      style={{ ["--paper-ac" as string]: accent }} // sheet size locked by .paper CSS (one A5 page)
     >
       <div className="h">
         <div>
@@ -216,7 +216,10 @@ function Paper({ data, qrDataUrl }: { data: InvoiceData; qrDataUrl: string }) {
             return (
               <div className="pm2" key={id}>
                 <div>
-                  {METHOD_LOGOS[id]}
+                  <span className="logo-row">
+                    {METHOD_LOGOS[id]}
+                    <b>{label}</b>
+                  </span>
                   <DetailLines data={data} id={id} />
                   {payable && (
                     <div>
